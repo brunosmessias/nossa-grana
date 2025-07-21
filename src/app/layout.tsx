@@ -1,12 +1,12 @@
-import "@/styles/globals.css"
+import "@/src/styles/globals.css"
 import { Metadata, Viewport } from "next"
-import clsx from "clsx"
 
 import { Providers } from "./providers"
 
-import { siteConfig } from "@/config/site"
-import { fontSans } from "@/config/fonts"
+import { siteConfig } from "@/src/config/site"
 import { TRPCReactProvider } from "@/src/trpc/react"
+import clsx from "clsx"
+import { fontHeading, fontMono, fontSans } from "@/src/app/_components/layout/fonts"
 
 export const metadata: Metadata = {
   title: {
@@ -33,12 +33,10 @@ export default function RootLayout({
 }) {
   return (
     <html suppressHydrationWarning lang="en">
-      <body
-        className={clsx(
-          "min-h-screen bg-background font-sans antialiased",
-          fontSans.className
-        )}
-      >
+      <body className={clsx(
+        "min-h-screen bg-background font-sans antialiased",
+        fontHeading.className, fontMono.className, fontSans.className,
+        )}>
         <TRPCReactProvider>
           <Providers
             themeProps={{
