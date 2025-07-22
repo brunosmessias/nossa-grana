@@ -4,11 +4,11 @@ import RotatingText from "@/src/app/_components/animated/rotatingText"
 export const Hero = () => {
   return (
     <section
-      className={`font-heading mx-auto my-16 flex flex-col justify-center gap-3 font-bold xl:my-32`}
+      className={`mx-auto my-16 flex flex-col justify-center gap-3 font-heading font-bold xl:my-32`}
     >
       <div className="z-10">
         <h1 className={`w-full text-3xl xl:text-5xl`}>
-          A grana;{" "}
+          A sua grana{" "}
           <RotatingText
             animate={{ y: 0 }}
             exit={{ y: "-120%" }}
@@ -19,9 +19,9 @@ export const Hero = () => {
             staggerDuration={0.025}
             staggerFrom={"last"}
             texts={[
-              "é sua.",
               "organizada!",
-              "simples.",
+              "inteligente!",
+              "tem que ser simples.",
               "bem cuidada",
               "no lugar certo!",
               "na palma da sua mão",
@@ -41,7 +41,7 @@ export const Hero = () => {
           {" "}
           Organize as finanças da família apenas falando com o Nossa Grana.
         </h2>
-        <div className={`mx-auto mt-10 w-32`}>
+        <div className="mt-10 flex justify-center">
           <Button
             className="font-bold"
             color="primary"
