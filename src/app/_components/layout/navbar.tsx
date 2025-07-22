@@ -1,17 +1,16 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
-import Logo from "@/src/app/_components/layout/logo";
-import { Button } from "@heroui/button";
-import { Link } from "@heroui/link";
+import { auth, currentUser } from "@clerk/nextjs/server"
+import Logo from "@/src/app/_components/layout/logo"
+import { Button } from "@heroui/button"
 import {
   Navbar as HeroUINavbar,
   NavbarBrand,
   NavbarContent,
-  NavbarItem,
 } from "@heroui/navbar"
 import { SignInButton, SignOutButton, UserButton } from "@clerk/nextjs"
+
 export default async function Navbar() {
   const { userId } = await auth()
-  const user = userId ? await currentUser() : null;
+  const user = userId ? await currentUser() : null
 
   return (
     <HeroUINavbar
@@ -22,9 +21,7 @@ export default async function Navbar() {
     >
       <NavbarBrand className="flex items-center">
         <Logo size={60} />
-        <p className="font-mono text-2xl font-bold text-primary">
-          Nossa Grana
-        </p>
+        <p className="font-mono text-2xl font-bold text-primary">Nossa Grana</p>
       </NavbarBrand>
       <NavbarContent justify={"end"}>
         {!user ? (
@@ -45,5 +42,5 @@ export default async function Navbar() {
         )}
       </NavbarContent>
     </HeroUINavbar>
-  );
+  )
 }
