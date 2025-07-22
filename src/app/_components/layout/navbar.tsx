@@ -1,14 +1,18 @@
+import { auth, currentUser } from "@clerk/nextjs/server";
+import Logo from "@/src/app/_components/layout/logo";
+import { Button } from "@heroui/button";
+import { Link } from "@heroui/link";
 import {
   Navbar as HeroUINavbar,
   NavbarBrand,
   NavbarContent,
   NavbarItem,
 } from "@heroui/navbar"
-import { Button } from "@heroui/button"
-import { Link } from "@heroui/link"
-import Logo from "@/src/app/_components/layout/logo"
+import { SignInButton, SignOutButton, UserButton } from "@clerk/nextjs"
+export default async function Navbar() {
+  const { userId } = await auth()
+  const user = userId ? await currentUser() : null;
 
-export const Navbar = () => {
   return (
     <HeroUINavbar
       isBordered
@@ -18,26 +22,28 @@ export const Navbar = () => {
     >
       <NavbarBrand className="flex items-center">
         <Logo size={60} />
-        <p className={`font-mono text-2xl font-bold text-primary`}>
+        <p className="font-mono text-2xl font-bold text-primary">
           Nossa Grana
         </p>
       </NavbarBrand>
-
-      <NavbarContent justify="end">
-        <NavbarItem className="hidden xl:flex">
-          <Link href="/api/auth/signin?callbackUrl=/welcome">Entrar</Link>
-        </NavbarItem>
-        <NavbarItem>
-          <Button
-            as={Link}
-            color="primary"
-            href="/api/auth/signin?callbackUrl=/welcome"
-            variant="flat"
-          >
-            Teste grátis!
-          </Button>
-        </NavbarItem>
+      <NavbarContent justify={"end"}>
+        {!user ? (
+          <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
+            <Button color="primary" variant="flat">
+              Entrar
+            </Button>
+          </SignInButton>
+        ) : (
+          <>
+            <UserButton></UserButton>
+            <SignOutButton>
+              <Button color="default" variant="flat">
+                Sair
+              </Button>
+            </SignOutButton>
+          </>
+        )}
       </NavbarContent>
     </HeroUINavbar>
-  )
+  );
 }

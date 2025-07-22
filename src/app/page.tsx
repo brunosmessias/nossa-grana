@@ -1,5 +1,5 @@
 import { cn } from "@heroui/theme"
-import { Navbar } from "@/src/app/_components/layout/navbar"
+import Navbar from "@/src/app/_components/layout/navbar"
 import Pain from "@/src/app/_components/page-hero/pain"
 import { Hero } from "@/src/app/_components/page-hero/hero"
 
