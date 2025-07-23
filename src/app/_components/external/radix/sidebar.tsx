@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, VariantProps } from "class-variance-authority"
-import { PanelLeft } from "lucide-react"
+import { PanelLeftCloseIcon, PanelRightCloseIcon } from "lucide-react"
 
 import { useIsMobile } from "@/src/app/_components/external/radix/hooks/use-mobile"
 import { cn } from "@/src/app/_components/external/radix/lib/utils"
@@ -204,7 +204,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className="w-[--sidebar-width] border-default bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -272,8 +272,8 @@ Sidebar.displayName = "Sidebar"
 const SidebarTrigger = React.forwardRef<
   React.ElementRef<typeof Button>,
   React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+>(({ className, onClick, children, ...props }, ref) => {
+  const { toggleSidebar, state } = useSidebar()
 
   return (
     <Button
@@ -288,7 +288,12 @@ const SidebarTrigger = React.forwardRef<
       }}
       {...props}
     >
-      <PanelLeft />
+      {state === "expanded" ? (
+        <PanelLeftCloseIcon className="text-default-500" />
+      ) : (
+        <PanelRightCloseIcon className="text-default-500" />
+      )}
+      {children}
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   )

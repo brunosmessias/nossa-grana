@@ -26,7 +26,7 @@
       "binding": "DB",
       "database_name": "nossagrana",
       "database_id": "c80148f0-be29-47f6-bb5b-147e91e4fbb3",
-      "migrations_dir": "drizzle/migrations"
+      "migrations_dir": "drizzle"
     }
   ]
 }

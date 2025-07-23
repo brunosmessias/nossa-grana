@@ -1,7 +1,7 @@
 import { cn } from "@heroui/theme"
 import Navbar from "@/src/app/_components/layout/navbar"
-import Pain from "@/src/app/_components/page-hero/pain"
-import { Hero } from "@/src/app/_components/page-hero/hero"
+import Pain from "@/src/app/_components/page/landing/pain"
+import { Hero } from "@/src/app/_components/page/landing/hero"
 
 export default async function Home() {
   return (
@@ -9,8 +9,8 @@ export default async function Home() {
       <Navbar />
       <div className="container mx-auto max-w-sm flex-grow p-2 pt-16 xl:max-w-5xl">
         <div className="fixed inset-0">
-          <div className="relative flex h-[50rem] w-full items-center justify-center bg-white dark:bg-black">
-            <div className="absolute right-[20vw] top-10 z-10 h-[150px] w-[400px] rotate-[0deg] transform rounded-full bg-gradient-to-tl from-slate-800 via-primary-500 to-zinc-400 blur-[150px]" />
+          <div className="flex h-[50rem] w-full items-center justify-center bg-background">
+            <div className="absolute right-[20vw] top-10 z-10 h-[150px] w-[400px] rotate-[0deg] transform rounded-full bg-gradient-to-tl from-background via-primary-300 blur-[150px]" />
 
             <div
               className={cn(

@@ -4,17 +4,27 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
+  SidebarTrigger,
   useSidebar,
 } from "../external/radix/sidebar"
 import Logo from "@/src/app/_components/layout/logo"
 import { UserButton, useUser } from "@clerk/nextjs"
 import { Avatar } from "@heroui/avatar"
 import { useEffect, useState } from "react"
+import { Link } from "@heroui/link"
+import { usePathname } from "next/navigation"
+import { Home, Users } from "lucide-react"
 
 export default function Sidebar() {
-  const { state } = useSidebar()
+  const { state, setOpenMobile } = useSidebar()
   const user = useUser()
+  const pathname = usePathname()
   const [isExpanded, setIsExpanded] = useState(true)
+
+  const navItems = [
+    { label: "Dashboard", href: "/dashboard", icon: Home },
+    { label: "Família", href: "/family", icon: Users },
+  ]
 
   useEffect(() => {
     if (state === "expanded") {
@@ -26,15 +36,41 @@ export default function Sidebar() {
 
   return (
     <RadixSidebar collapsible="icon" variant="floating">
-      <SidebarHeader className="items-center p-0">
-        <Logo size={isExpanded ? 60 : 40} />
-        {isExpanded && (
-          <p className={`font-mono text-2xl font-bold text-primary`}>
-            Nossa Grana
-          </p>
-        )}
+      <SidebarHeader>
+        <SidebarTrigger className="self-end"></SidebarTrigger>
+        <div className="flex flex-col items-center p-0">
+          <Logo size={isExpanded ? 60 : 40} />
+          {isExpanded && (
+            <p className={`font-mono text-2xl font-bold text-primary`}>
+              Nossa Grana
+            </p>
+          )}
+        </div>
       </SidebarHeader>
-      <SidebarContent />
+
+      <SidebarContent>
+        <nav className="mt-8 flex flex-col gap-2 px-2">
+          {navItems.map(({ label, href, icon: Icon }) => {
+            const isActive = pathname.startsWith(href)
+            return (
+              <Link
+                key={href}
+                href={href}
+                onPress={() => setOpenMobile(false)}
+                color={isActive ? "primary" : "foreground"}
+                className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${
+                  isActive
+                    ? "bg-primary/10 text-primary"
+                    : "hover:bg-default-200"
+                }`}
+              >
+                <Icon size={20} />
+                {isExpanded && <span className="font-medium">{label}</span>}
+              </Link>
+            )
+          })}
+        </nav>
+      </SidebarContent>
 
       <SidebarFooter>
         {isExpanded ? (

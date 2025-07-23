@@ -34,10 +34,6 @@ const config = {
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
@@ -244,29 +240,10 @@ const config = {
             },
             background: "#000000",
             foreground: "#ffffff",
-            content1: {
-              DEFAULT: "#18181b",
-              foreground: "#fff",
-            },
-            content2: {
-              DEFAULT: "#27272a",
-              foreground: "#fff",
-            },
-            content3: {
-              DEFAULT: "#3f3f46",
-              foreground: "#fff",
-            },
-            content4: {
-              DEFAULT: "#52525b",
-              foreground: "#fff",
-            },
             focus: "#17c964",
             overlay: "#000000",
           },
         },
-      },
-      layout: {
-        disabledOpacity: "0.5",
       },
     }),
     require("tailwindcss-animate"),

@@ -3,7 +3,6 @@ import { Metadata, Viewport } from "next"
 
 import { Providers } from "./providers"
 
-import { siteConfig } from "@/src/config/site"
 import { TRPCReactProvider } from "@/src/trpc/react"
 import clsx from "clsx"
 import {
@@ -16,10 +15,11 @@ import { ClerkProvider } from "@clerk/nextjs"
 
 export const metadata: Metadata = {
   title: {
-    default: siteConfig.name,
-    template: `%s - ${siteConfig.name}`,
+    default: "Nossa Grana",
+    template: `%s - Nossa Grana`,
   },
-  description: siteConfig.description,
+  description:
+    "Registre entradas e saídas, acompanhe metas, planeje gastos e compartilhe o orçamento com toda a família.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -46,7 +46,7 @@ export default function RootLayout({
       <html suppressHydrationWarning lang="en">
         <body
           className={clsx(
-            "bg-background min-h-screen font-sans antialiased",
+            "min-h-screen bg-background font-sans antialiased",
             fontHeading.className,
             fontMono.className,
             fontSans.className
