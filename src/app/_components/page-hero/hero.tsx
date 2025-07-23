@@ -1,5 +1,5 @@
 import { Button } from "@heroui/button"
-import RotatingText from "@/src/app/_components/animated/rotatingText"
+import RotatingText from "@/src/app/_components/external/rotatingText"
 
 export const Hero = () => {
   return (

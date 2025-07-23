@@ -1,7 +1,7 @@
 import { Image } from "@heroui/image"
 import { Link } from "@heroui/link"
-import { ShineBorder } from "@/src/app/_components/animated/shineBorder"
-import TrueFocus from "@/src/app/_components/animated/trueFocus"
+import { ShineBorder } from "@/src/app/_components/external/shineBorder"
+import TrueFocus from "@/src/app/_components/external/trueFocus"
 
 export default function Pain() {
   return (

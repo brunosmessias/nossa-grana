@@ -6,7 +6,13 @@ import { Providers } from "./providers"
 import { siteConfig } from "@/src/config/site"
 import { TRPCReactProvider } from "@/src/trpc/react"
 import clsx from "clsx"
-import { fontHeading, fontMono, fontSans } from "@/src/app/_components/layout/fonts"
+import {
+  fontHeading,
+  fontMono,
+  fontSans,
+} from "@/src/app/_components/layout/fonts"
+import { dark } from "@clerk/themes"
+import { ClerkProvider } from "@clerk/nextjs"
 
 export const metadata: Metadata = {
   title: {
@@ -32,24 +38,34 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html suppressHydrationWarning lang="en">
-      <body className={clsx(
-        "min-h-screen bg-background font-sans antialiased",
-        fontHeading.className, fontMono.className, fontSans.className,
-        )}>
-        <TRPCReactProvider>
-          <Providers
-            themeProps={{
-              attribute: "class",
-              defaultTheme: "dark",
-            }}
-          >
-            <main className="relative flex h-screen w-full flex-col">
-              {children}
-            </main>
-          </Providers>
-        </TRPCReactProvider>
-      </body>
-    </html>
+    <ClerkProvider
+      localization={{ locale: "ptBR" }}
+      appearance={{ baseTheme: dark }}
+      afterSignOutUrl="/"
+    >
+      <html suppressHydrationWarning lang="en">
+        <body
+          className={clsx(
+            "bg-background min-h-screen font-sans antialiased",
+            fontHeading.className,
+            fontMono.className,
+            fontSans.className
+          )}
+        >
+          <TRPCReactProvider>
+            <Providers
+              themeProps={{
+                attribute: "class",
+                defaultTheme: "dark",
+              }}
+            >
+              <main className="relative flex h-screen w-full flex-col">
+                {children}
+              </main>
+            </Providers>
+          </TRPCReactProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   )
 }
