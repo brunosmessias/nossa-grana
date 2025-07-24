@@ -95,6 +95,6 @@ bun dev
 
 ## 📝 Licença
 
-MIT
+Copyright (c) 2025 Bruno dos Santos Messias. Todos os direitos reservados.
 
 ---
