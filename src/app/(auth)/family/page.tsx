@@ -1,10 +1,14 @@
 import { Card, CardBody, CardHeader } from "@heroui/card"
 import React from "react"
-import FormFamily from "@/src/app/_components/page/family/form"
 import { api } from "@/src/trpc/server"
+import ModalFamilyInvite from "@/src/app/_components/page/family/invite"
+import FormFamily from "@/src/app/_components/page/family/form"
 
 export default async function PageWelcome() {
   const family = await api.family.getCurrent()
+  const invite = !family && (await api.family.getInvitedBy())
+
+  console.log(family, invite)
 
   return (
     <>
@@ -22,7 +26,11 @@ export default async function PageWelcome() {
           </div>
         </CardHeader>
         <CardBody>
-          <FormFamily defaultValues={family}></FormFamily>
+          {invite ? (
+            <ModalFamilyInvite family={invite}></ModalFamilyInvite>
+          ) : (
+            <FormFamily defaultValues={family}></FormFamily>
+          )}
         </CardBody>
       </Card>
     </>
