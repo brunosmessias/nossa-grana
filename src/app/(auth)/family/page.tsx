@@ -8,8 +8,6 @@ export default async function PageWelcome() {
   const family = await api.family.getCurrent()
   const invite = !family && (await api.family.getInvitedBy())
 
-  console.log(family, invite)
-
   return (
     <>
       <Card className="w-full border-1 border-default/80 bg-background p-4">

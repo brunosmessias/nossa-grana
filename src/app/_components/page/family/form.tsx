@@ -24,7 +24,6 @@ export default function FormFamily({
       router.push("/dashboard")
     },
     onError: (err) => {
-      console.log("teste")
       addToast({
         title: err.message,
         color: "danger",

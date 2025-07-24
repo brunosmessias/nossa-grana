@@ -4,7 +4,6 @@ import { Metadata, Viewport } from "next"
 import { Providers } from "./providers"
 
 import { TRPCReactProvider } from "@/src/trpc/react"
-import clsx from "clsx"
 import {
   fontHeading,
   fontMono,
@@ -12,6 +11,7 @@ import {
 } from "@/src/app/_components/layout/fonts"
 import { dark } from "@clerk/themes"
 import { ClerkProvider } from "@clerk/nextjs"
+import { cn } from "@heroui/theme"
 
 export const metadata: Metadata = {
   title: {
@@ -45,11 +45,11 @@ export default function RootLayout({
     >
       <html suppressHydrationWarning lang="en">
         <body
-          className={clsx(
+          className={cn(
             "min-h-screen bg-background font-sans antialiased",
-            fontHeading.className,
-            fontMono.className,
-            fontSans.className
+            fontHeading.variable,
+            fontMono.variable,
+            fontSans.variable
           )}
         >
           <TRPCReactProvider>

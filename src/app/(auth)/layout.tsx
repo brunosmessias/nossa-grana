@@ -12,7 +12,7 @@ export default async function AuthenticatedLayout({
   return (
     <SidebarProvider>
       <Sidebar />
-      <div className="m-2 flex-grow xl:m-8">
+      <div className="m-2 flex-grow">
         <div className="flex flex-row items-center gap-4">
           <SidebarTrigger className="w-full justify-start text-default-500 lg:hidden">
             Abrir sidebar
