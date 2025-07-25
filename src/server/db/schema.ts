@@ -72,7 +72,8 @@ export const transactions = sqliteTable(
   },
   (table) => ({
     familyIdIdx: index("transactions_family_id_idx").on(table.familyId),
-    transactionDateIdx: index("transactions_date_idx").on(
+    familyDateCompositeIdx: index("family_date_idx").on(
+      table.familyId,
       table.transactionDate
     ),
   })

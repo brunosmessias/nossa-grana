@@ -52,8 +52,6 @@ export function TransactionsTable({
   const [globalFilter, setGlobalFilter] = useState("")
   const isMobile = useIsMobile()
 
-  console.log(isMobile)
-
   const columns = useMemo<ColumnDef<TransactionsTableProps["data"][0]>[]>(
     () => [
       {
@@ -192,7 +190,7 @@ export function TransactionsTable({
           aria-label="Tabela de transações"
           classNames={{
             wrapper: "bg-background",
-            th: "bg-primary/10 text-primary font-bold",
+            th: "bg-primary/10 text-primary font-bold text-md",
           }}
           bottomContent={
             table.getPageCount() > 1 ? (

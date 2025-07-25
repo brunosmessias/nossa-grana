@@ -1,4 +1,4 @@
-import ClientPageDashboard from "@/src/app/_components/page/dashboard"
+import ClientPageDashboard from "@/src/app/_components/page/dashboard/pageTransactions"
 import { api, HydrateClient } from "@/src/trpc/server"
 
 export default async function Page() {

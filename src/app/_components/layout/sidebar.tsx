@@ -13,7 +13,7 @@ import { Avatar } from "@heroui/avatar"
 import { useEffect, useState } from "react"
 import { Link } from "@heroui/link"
 import { usePathname } from "next/navigation"
-import { Home, Users } from "lucide-react"
+import { Users, Wallet } from "lucide-react"
 
 export default function Sidebar() {
   const { state, setOpenMobile } = useSidebar()
@@ -22,7 +22,7 @@ export default function Sidebar() {
   const [isExpanded, setIsExpanded] = useState(true)
 
   const navItems = [
-    { label: "Dashboard", href: "/dashboard", icon: Home },
+    { label: "Transações", href: "/dashboard", icon: Wallet },
     { label: "Família", href: "/family", icon: Users },
   ]
 
@@ -78,10 +78,10 @@ export default function Sidebar() {
           <UserButton
             appearance={{
               elements: {
-                userButtonAvatarBox: "w-10 h-10", // Custom width and height
+                userButtonAvatarBox: "w-10 h-10",
                 userButtonBox: {
                   flexDirection: "row-reverse",
-                  width: "100%", // Full width
+                  width: "100%",
                 },
               },
             }}
