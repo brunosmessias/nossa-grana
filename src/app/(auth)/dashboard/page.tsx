@@ -1,7 +1,17 @@
-export default function Page() {
+import ClientPageDashboard from "@/src/app/_components/page/dashboard"
+import { api, HydrateClient } from "@/src/trpc/server"
+
+export default async function Page() {
+  const today = new Date()
+
+  await api.transaction.getByMonth.prefetch({
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+  })
+
   return (
-    <div className="grid h-full w-full grow gap-8 xl:grid-cols-3">
-      Dashboard
-    </div>
+    <HydrateClient>
+      <ClientPageDashboard />
+    </HydrateClient>
   )
 }

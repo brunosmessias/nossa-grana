@@ -66,14 +66,12 @@ export const familyRouter = createTRPCRouter({
         .onConflictDoUpdate({
           target: familyMembers.email,
           set: {
-            name: sql`excluded
-            .
-            name`,
+            name: sql`excluded.name`,
           },
         })
 
       //Se é novo usuário
-      if (!input.members[0].joinedAt) {
+      if (!ctx.session.sessionClaims.metadata?.familyId) {
         const client = await clerkClient()
         await client.users.updateUserMetadata(ctx.session.userId, {
           publicMetadata: {

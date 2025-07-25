@@ -1,5 +1,6 @@
 import { familyRouter } from "@/src/server/api/routers/family"
 import { createCallerFactory, createTRPCRouter } from "@/src/server/api/trpc"
+import { transactionRouter } from "@/src/server/api/routers/transaction"
 
 /**
  * This is the primary router for your server.
@@ -8,6 +9,7 @@ import { createCallerFactory, createTRPCRouter } from "@/src/server/api/trpc"
  */
 export const appRouter = createTRPCRouter({
   family: familyRouter,
+  transaction: transactionRouter,
 })
 
 // export type definition of API

@@ -25,6 +25,6 @@ export async function renderEmailTemplate(
     template?.replace(/{{\s*([\w.]+)\s*}}/g, (_, key) => {
       const value = variables[key]
       return value !== undefined ? String(value) : ""
-    }) ?? "teste"
+    }) ?? ""
   )
 }

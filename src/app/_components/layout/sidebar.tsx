@@ -54,11 +54,12 @@ export default function Sidebar() {
             const isActive = pathname.startsWith(href)
             return (
               <Link
+                data-expanded={isExpanded}
                 key={href}
                 href={href}
                 onPress={() => setOpenMobile(false)}
                 color={isActive ? "primary" : "foreground"}
-                className={`flex items-center gap-3 rounded-md px-3 py-2 transition-colors ${
+                className={`flex items-center justify-center gap-3 rounded-md py-2 transition-colors data-[expanded=true]:justify-start data-[expanded=true]:px-3 ${
                   isActive
                     ? "bg-primary/10 text-primary"
                     : "hover:bg-default-200"
