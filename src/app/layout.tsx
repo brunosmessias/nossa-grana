@@ -22,6 +22,12 @@ export const metadata: Metadata = {
     "Registre entradas e saídas, acompanhe metas, planeje gastos e compartilhe o orçamento com toda a família.",
   icons: {
     icon: "/favicon.ico",
+    apple: "/icons/logo-192x192.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black",
+    title: "Nossa Grana",
   },
 }
 

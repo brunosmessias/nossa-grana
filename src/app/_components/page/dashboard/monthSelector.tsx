@@ -2,8 +2,8 @@
 
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { Button } from "@heroui/button"
-import { DateState } from "."
 import { Dispatch, SetStateAction } from "react"
+import { DateState } from "@/src/app/_components/page/dashboard/pageTransactions"
 
 export interface MonthSelectorProps {
   dateState: DateState
