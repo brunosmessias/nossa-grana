@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "NossaGrana",
     description:
       "Registre entradas e saídas, acompanhe metas, planeje gastos e compartilhe o orçamento com toda a família.",
-    start_url: "/",
+    start_url: "/dashboard",
     display: "standalone",
     background_color: "#000000",
     theme_color: "#000000",

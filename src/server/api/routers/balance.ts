@@ -12,7 +12,6 @@ export const balanceRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      console.log(ctx.session.sessionClaims.metadata)
       const endOfMonth = new Date(input.year, input.month, 0, 23, 59, 59)
       const toUTCTimestamp = (date: Date) => Math.floor(date.getTime() / 1000)
       const result = await ctx.db

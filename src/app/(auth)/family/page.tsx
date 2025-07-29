@@ -1,8 +1,8 @@
 import { Card, CardBody, CardHeader } from "@heroui/card"
 import React from "react"
 import { api } from "@/src/trpc/server"
-import ModalFamilyInvite from "@/src/app/_components/page/family/invite"
-import FormFamily from "@/src/app/_components/page/family/form"
+import ModalFamilyInvite from "@/src/app/_components/page/family/modalFamilyInvite"
+import FormFamily from "@/src/app/_components/page/family/formFamily"
 
 export default async function PageWelcome() {
   const family = await api.family.getCurrent()

@@ -10,7 +10,10 @@ export interface MonthSelectorProps {
   setDateState: Dispatch<SetStateAction<DateState>>
 }
 
-export function MonthSelector({ dateState, setDateState }: MonthSelectorProps) {
+export function SectionMonthSelector({
+  dateState,
+  setDateState,
+}: MonthSelectorProps) {
   const changeMonth = (delta: -1 | 1) => {
     setDateState((prev) => {
       let newMonth = prev.month + delta

@@ -9,12 +9,19 @@ import { Button } from "@heroui/button"
 import { MoreVertical } from "lucide-react"
 import type { RouterOutputs } from "@/src/trpc/react"
 import { formatCentsToBRL } from "@/src/app/_components/utils/currency"
+import { TransactionType } from "@/src/server/api/routers/transaction"
+
+type MobileTransactionCardProps = {
+  transaction: RouterOutputs["transaction"]["getByMonth"][0]
+  onEditTransaction: (transaction: TransactionType) => void
+  onDeleteTransaction: (transaction: TransactionType) => void
+}
 
 export default function MobileTransactionCard({
   transaction,
-}: {
-  transaction: RouterOutputs["transaction"]["getByMonth"][0]
-}) {
+  onEditTransaction,
+  onDeleteTransaction,
+}: MobileTransactionCardProps) {
   return (
     <div className="rounded-md border-2 border-default-100 p-2">
       <div className="flex items-start justify-between">
@@ -54,8 +61,29 @@ export default function MobileTransactionCard({
               </Button>
             </DropdownTrigger>
             <DropdownMenu aria-label="Ações">
-              <DropdownItem key="edit">Editar</DropdownItem>
-              <DropdownItem key="delete" className="text-danger">
+              <DropdownItem
+                key="edit"
+                onPress={() => {
+                  onEditTransaction({
+                    ...transaction,
+                    categoryId: transaction.category.id,
+                    amountCents: transaction.amountCents.toString(),
+                  })
+                }}
+              >
+                Editar
+              </DropdownItem>
+              <DropdownItem
+                key="delete"
+                className="text-danger"
+                onPress={() => {
+                  onDeleteTransaction({
+                    ...transaction,
+                    categoryId: transaction.category.id,
+                    amountCents: transaction.amountCents.toString(),
+                  })
+                }}
+              >
                 Excluir
               </DropdownItem>
             </DropdownMenu>

@@ -2,6 +2,17 @@ import { z } from "zod"
 import { and, eq, gte, lte, sql } from "drizzle-orm"
 import { categories, familyMembers, transactions } from "@/src/server/db/schema"
 import { createTRPCRouter, protectedProcedure } from "@/src/server/api/trpc"
+import { parseCurrencyToCents } from "@/src/app/_components/utils/currency"
+
+const transactionData = z.object({
+  id: z.string().optional(),
+  description: z.string(),
+  categoryId: z.string(),
+  amountCents: z.string(),
+  transactionDate: z.date(),
+  isPaid: z.boolean(),
+})
+export type TransactionType = z.infer<typeof transactionData>
 
 export const transactionRouter = createTRPCRouter({
   getByMonth: protectedProcedure
@@ -48,5 +59,58 @@ export const transactionRouter = createTRPCRouter({
           )
         )
         .orderBy(transactions.transactionDate)
+    }),
+
+  upsert: protectedProcedure
+    .input(transactionData)
+    .mutation(async ({ ctx, input }) => {
+      const category = await ctx.db.query.categories.findFirst({
+        where: eq(categories.id, input.categoryId),
+      })
+
+      if (!category) {
+        throw new Error("Categoria não encontrada")
+      }
+
+      const transactionData = {
+        ...input,
+        familyId: ctx.session.sessionClaims.metadata!.familyId!,
+        createdBy: ctx.session.sessionClaims.email,
+        amountCents: parseCurrencyToCents(input.amountCents),
+        type: category.type,
+      }
+
+      const result = await ctx.db
+        .insert(transactions)
+        .values(transactionData)
+        .onConflictDoUpdate({
+          target: transactions.id,
+          set: transactionData,
+        })
+        .returning()
+
+      return result[0]
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const transaction = await ctx.db.query.transactions.findFirst({
+        where: and(
+          eq(transactions.id, input.id),
+          eq(
+            transactions.familyId,
+            ctx.session.sessionClaims.metadata!.familyId!
+          )
+        ),
+      })
+
+      if (!transaction) {
+        throw new Error("Transação não encontrada ou não autorizada")
+      }
+
+      await ctx.db.delete(transactions).where(eq(transactions.id, input.id))
+
+      return { success: true }
     }),
 })

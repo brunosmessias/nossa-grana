@@ -31,19 +31,23 @@ import {
   SortingState,
 } from "@tanstack/table-core"
 import { flexRender, useReactTable } from "@tanstack/react-table"
-import MobileTransactionCard from "@/src/app/_components/page/dashboard/mobileTransactionsTable"
+import MobileTransactionCard from "@/src/app/_components/page/dashboard/mobileTableTransactions"
 import { useIsMobile } from "@heroui/use-is-mobile"
 import { formatCentsToBRL } from "@/src/app/_components/utils/currency"
+import { TransactionType } from "@/src/server/api/routers/transaction"
 
 interface TransactionsTableProps {
   data: RouterOutputs["transaction"]["getByMonth"][0][]
   isLoading?: boolean
-  title?: string
+  onEditTransaction: (transaction: TransactionType) => void
+  onDeleteTransaction: (transaction: TransactionType) => void
 }
 
 export function TransactionsTable({
   data,
   isLoading = false,
+  onEditTransaction,
+  onDeleteTransaction,
 }: TransactionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "transactionDate", desc: true },
@@ -112,7 +116,7 @@ export function TransactionsTable({
       },
       {
         id: "actions",
-        cell: () => (
+        cell: (info) => (
           <Dropdown>
             <DropdownTrigger>
               <Button isIconOnly size="sm" variant="light">
@@ -120,8 +124,31 @@ export function TransactionsTable({
               </Button>
             </DropdownTrigger>
             <DropdownMenu aria-label="Ações">
-              <DropdownItem key="edit">Editar</DropdownItem>
-              <DropdownItem key="delete" className="text-danger">
+              <DropdownItem
+                key="edit"
+                onPress={() => {
+                  const obj = info.cell.row.original
+                  onEditTransaction({
+                    ...obj,
+                    amountCents: obj.amountCents.toString(),
+                    categoryId: obj.category.id,
+                  })
+                }}
+              >
+                Editar
+              </DropdownItem>
+              <DropdownItem
+                key="delete"
+                className="text-danger"
+                onPress={() => {
+                  const obj = info.cell.row.original
+                  onDeleteTransaction({
+                    ...obj,
+                    amountCents: obj.amountCents.toString(),
+                    categoryId: obj.category.id,
+                  })
+                }}
+              >
                 Excluir
               </DropdownItem>
             </DropdownMenu>
@@ -168,6 +195,8 @@ export function TransactionsTable({
                 <MobileTransactionCard
                   key={row.id}
                   transaction={row.original}
+                  onEditTransaction={onEditTransaction}
+                  onDeleteTransaction={onDeleteTransaction}
                 />
               ))}
             </div>

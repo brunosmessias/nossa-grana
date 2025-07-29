@@ -107,7 +107,7 @@ export const categories = sqliteTable(
     name: text("name").notNull(),
     color: text("color"), // HEX color
     icon: text("icon"),
-    type: text("type", { enum: ["income", "expense"] }).notNull(),
+    type: text("type", { enum: ["INCOME", "EXPENSE"] }).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
       .default(sql`(unixepoch())`),

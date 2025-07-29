@@ -9,6 +9,8 @@ export default async function Page() {
     month: today.getMonth() + 1,
   })
 
+  await api.category.getAll.prefetch()
+
   return (
     <HydrateClient>
       <ClientPageDashboard />
