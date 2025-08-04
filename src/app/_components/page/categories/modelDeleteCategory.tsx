@@ -10,64 +10,54 @@ import {
 } from "@heroui/modal"
 import { Button } from "@heroui/button"
 import { api } from "@/src/trpc/react"
-import { TransactionType } from "@/src/server/api/routers/transaction"
-import { DateState } from "@/src/app/_components/page/dashboard/pageTransactions"
-import { useTransactionsOptimistic } from "@/src/app/hooks/useTransactionsOptimistic"
+import { CategoryType } from "@/src/server/api/routers/category"
 import { addToast } from "@heroui/toast"
-import { formatCurrency } from "@/src/app/_components/utils/currency"
+import { useCategoriesOptimistic } from "@/src/app/hooks/useCategoriesOptimistic"
 
-type DeleteTransactionModalProps = {
+type DeleteCategoryModalProps = {
   disclosure: ReturnType<typeof useDisclosure>
-  transaction?: TransactionType
-  dateState: DateState
+  category?: CategoryType
 }
 
-export default function ModalDeleteTransaction({
+export default function ModalDeleteCategory({
   disclosure,
-  transaction,
-  dateState,
-}: DeleteTransactionModalProps) {
+  category,
+}: DeleteCategoryModalProps) {
   const utils = api.useUtils()
-  const { deleteTransaction } = useTransactionsOptimistic(dateState)
+  const { deleteCategory } = useCategoriesOptimistic()
 
-  const deleteMutation = api.transaction.delete.useMutation({
+  const deleteMutation = api.category.delete.useMutation({
     onMutate: async () => {
-      await utils.transaction.getByMonth.cancel(dateState)
-      await utils.balance.getAccumulatedBalance.cancel({ ...dateState })
+      await utils.category.getAllWithStats.cancel()
 
-      const { previousTransactions } = await deleteTransaction(transaction!.id!)
+      const { previousData } = await deleteCategory(category!.id!)
       disclosure.onClose()
 
-      return { previousTransactions }
+      return { previousData }
     },
     onError: (error, variables, context) => {
       if (context) {
-        utils.transaction.getByMonth.setData(
-          dateState,
-          context.previousTransactions
-        )
+        utils.category.getAllWithStats.setData(undefined, context.previousData)
       }
       disclosure.onOpen()
       addToast({
-        title: "Erro ao deletar transação",
+        title: "Erro ao deletar categoria",
         color: "danger",
       })
     },
     onSuccess: () => {
       addToast({
-        title: "Transação deletada com sucesso",
+        title: "Categoria deletada com sucesso",
         color: "success",
       })
     },
     onSettled: () => {
-      void utils.transaction.getByMonth.invalidate(dateState)
-      void utils.balance.getAccumulatedBalance.invalidate(dateState)
-      void utils.category.getAllWithStats.invalidate()
+      void utils.category.invalidate()
     },
   })
 
   const handleDelete = () => {
-    deleteMutation.mutate({ id: transaction!.id! })
+    deleteMutation.mutate({ id: category!.id! })
   }
 
   return (
@@ -89,13 +79,17 @@ export default function ModalDeleteTransaction({
             </ModalHeader>
             <ModalBody>
               <p className="text-foreground">
-                Tem certeza que deseja deletar essa transação ?
+                Tem certeza que deseja deletar essa categoria ?
               </p>
+              <span>
+                As transações associadas a ela{" "}
+                <strong className="text-danger">não serão deletadas</strong>!
+              </span>
               <p className="flex flex-col gap-2 rounded-2xl bg-default-50 px-4 py-2 text-foreground">
-                <span>Nome: {transaction!.description}</span>
-                <span>Valor: {formatCurrency(transaction!.amountCents)}</span>
+                <span>Nome: {category!.name}</span>
                 <span>
-                  Data: {transaction!.transactionDate.toLocaleDateString()}
+                  Tipo da categoria:{" "}
+                  {category!.type === "EXPENSE" ? "Despesa" : "Renda"}
                 </span>
               </p>
               <p className="font-semibold text-default-400">

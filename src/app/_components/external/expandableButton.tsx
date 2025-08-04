@@ -54,7 +54,7 @@ const ExpandingButton = ({
       animate={isMobile ? "hover" : undefined}
       whileHover={isMobile ? undefined : "hover"}
       variants={buttonVariants}
-      style={{ overflow: "hidden", maxWidth: width + "rem" }} // Previne overflow durante a animação
+      style={{ overflow: "hidden", maxWidth: isMobile ? "" : width + "rem" }} // Previne overflow durante a animação
     >
       <Button
         {...props}

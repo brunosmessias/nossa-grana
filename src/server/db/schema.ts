@@ -105,8 +105,8 @@ export const categories = sqliteTable(
       .notNull()
       .references(() => families.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
-    color: text("color"), // HEX color
-    icon: text("icon"),
+    color: text("color").notNull(), // HEX color
+    icon: text("icon").notNull(),
     type: text("type", { enum: ["INCOME", "EXPENSE"] }).notNull(),
     createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()

@@ -37,7 +37,7 @@ export const transactionRouter = createTRPCRouter({
           isPaid: transactions.isPaid,
           transactionDate: transactions.transactionDate,
           category: sql`json_object
-            ('id', categories.id, 'name', categories.name, 'color', categories.color)`.mapWith(
+            ('id', categories.id, 'name', categories.name, 'color', categories.color, 'icon', categories.icon)`.mapWith(
             (val) => (val ? JSON.parse(val) : null)
           ),
           createdBy: sql`json_object
@@ -95,22 +95,16 @@ export const transactionRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const transaction = await ctx.db.query.transactions.findFirst({
-        where: and(
-          eq(transactions.id, input.id),
-          eq(
-            transactions.familyId,
-            ctx.session.sessionClaims.metadata!.familyId!
+      return ctx.db
+        .delete(transactions)
+        .where(
+          and(
+            eq(transactions.id, input.id),
+            eq(
+              transactions.familyId,
+              ctx.session.sessionClaims.metadata!.familyId!
+            )
           )
-        ),
-      })
-
-      if (!transaction) {
-        throw new Error("Transação não encontrada ou não autorizada")
-      }
-
-      await ctx.db.delete(transactions).where(eq(transactions.id, input.id))
-
-      return { success: true }
+        )
     }),
 })

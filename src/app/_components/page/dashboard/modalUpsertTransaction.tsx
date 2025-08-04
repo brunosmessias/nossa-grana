@@ -92,12 +92,13 @@ export default function ModalUpsertTransaction({
       disclosure.onOpen()
       addToast({
         title: "Erro ao salvar transação",
-        color: "success",
+        color: "danger",
       })
     },
     onSettled: () => {
       void utils.transaction.getByMonth.invalidate({ ...dateState })
       void utils.balance.getAccumulatedBalance.invalidate({ ...dateState })
+      void utils.category.getAllWithStats.invalidate()
     },
   })
 

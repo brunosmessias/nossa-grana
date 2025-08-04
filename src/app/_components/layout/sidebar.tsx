@@ -13,7 +13,7 @@ import { Avatar } from "@heroui/avatar"
 import { useEffect, useState } from "react"
 import { Link } from "@heroui/link"
 import { usePathname } from "next/navigation"
-import { Users, Wallet } from "lucide-react"
+import { Tags, Users, Wallet } from "lucide-react"
 
 export default function Sidebar() {
   const { state, setOpenMobile } = useSidebar()
@@ -23,6 +23,7 @@ export default function Sidebar() {
 
   const navItems = [
     { label: "Transações", href: "/dashboard", icon: Wallet },
+    { label: "Categorias", href: "/categories", icon: Tags },
     { label: "Família", href: "/family", icon: Users },
   ]
 

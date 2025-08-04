@@ -1,7 +1,12 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ChevronDown, ChevronUp, MoreVertical } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronUp,
+  CircleQuestionMark,
+  MoreVertical,
+} from "lucide-react"
 import { type RouterOutputs } from "@/src/trpc/react"
 import {
   Table,
@@ -35,6 +40,7 @@ import MobileTransactionCard from "@/src/app/_components/page/dashboard/mobileTa
 import { useIsMobile } from "@heroui/use-is-mobile"
 import { formatCentsToBRL } from "@/src/app/_components/utils/currency"
 import { TransactionType } from "@/src/server/api/routers/transaction"
+import { iconOptions } from "@/src/app/_components/utils/categoryIcons"
 
 interface TransactionsTableProps {
   data: RouterOutputs["transaction"]["getByMonth"][0][]
@@ -78,15 +84,25 @@ export function TransactionsTable({
           const category = info.getValue() as
             | { name: string; color: string; icon: string }
             | undefined
+
+          const IconComponent =
+            iconOptions.find((t) => t.value === category!.icon)?.icon ||
+            CircleQuestionMark
           return category ? (
             <Chip
               color="primary"
-              variant="flat"
+              radius="sm"
+              size="sm"
+              classNames={{
+                content: "flex items-center gap-2",
+              }}
               style={{
                 backgroundColor: `${category.color}20`,
                 color: category.color,
+                outline: `1px solid ${category.color}70`,
               }}
             >
+              <IconComponent className="h-4 w-4" />
               {category.name}
             </Chip>
           ) : (
@@ -106,11 +122,12 @@ export function TransactionsTable({
         },
       },
       {
-        accessorKey: "status",
+        accessorKey: "isPaid",
         header: "Status",
         cell: (info) => (
           <Checkbox
-            defaultSelected={info.getValue() === "CONFIRMED"}
+            isDisabled
+            defaultSelected={info.getValue() as boolean}
           ></Checkbox>
         ),
       },

@@ -11,9 +11,9 @@
     "prefix": ""
   },
   "aliases": {
-    "components": "@/components",
+    "components": "@/src/app/_components/external/radix",
     "utils": "@/lib/utils",
-    "ui": "@/components/ui",
+    "ui": "@/src/app/_components/external/radix",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },

@@ -102,7 +102,8 @@ export default function ClientPageDashboard() {
               color="primary"
               text="Adicionar transação"
               variant="flat"
-              width={12}
+              className="w-full"
+              width={11}
               onPress={addTransaction}
             >
               <PlusIcon size={20} />
