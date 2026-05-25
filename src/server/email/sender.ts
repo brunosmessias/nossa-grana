@@ -1,4 +1,5 @@
 import { resend } from "@/server/email/resend"
+import { env } from "@/env"
 
 type SendEmailInput = {
   to: string
@@ -8,13 +9,8 @@ type SendEmailInput = {
 }
 
 export async function sendEmail(input: SendEmailInput): Promise<void> {
-  const fromAddress = process.env.RESEND_FROM_EMAIL
-  if (!fromAddress) {
-    throw new Error("RESEND_FROM_EMAIL is required")
-  }
-
   const result = await resend.emails.send({
-    from: fromAddress,
+    from: env.RESEND_FROM_EMAIL,
     to: [input.to],
     subject: input.subject,
     html: input.html,

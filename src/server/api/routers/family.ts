@@ -1,28 +1,47 @@
-import { eq, and, inArray } from "drizzle-orm"
-
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc"
-import { db } from "@/server/db/client"
-import { families, familyMembers } from "@/server/db/schema"
-import { acceptInvite, createFamily, inviteMemberByEmail } from "@/server/services/family-service"
-import { acceptFamilyInviteSchema, createFamilySchema, inviteFamilyMemberSchema } from "@/shared/schemas/family"
+import { env } from "@/env"
+import {
+  acceptInvite,
+  checkIsAdmin,
+  createFamily,
+  getFamilyDetails,
+  getFamilyMember,
+  getMyFamilies,
+  inviteMemberByEmail,
+  removeFamilyMember,
+  revokeInvite,
+  updateFamilyName,
+} from "@/server/services/family-service"
+import {
+  acceptFamilyInviteSchema,
+  createFamilySchema,
+  getFamilySchema,
+  inviteFamilyMemberSchema,
+  removeMemberSchema,
+  revokeInviteSchema,
+  updateFamilySchema,
+} from "@/shared/schemas/family"
 
 export const familyRouter = createTRPCRouter({
   create: protectedProcedure.input(createFamilySchema).mutation(async ({ ctx, input }) => {
-    return createFamily({
-      userId: ctx.user.id,
-      familyName: input.name,
-    })
+    return createFamily({ userId: ctx.user.id, familyName: input.name })
+  }),
+
+  getMe: protectedProcedure.input(getFamilySchema).query(async ({ ctx, input }) => {
+    return getFamilyMember({ familyId: input.familyId, userId: ctx.user.id })
+  }),
+
+  getDetails: protectedProcedure.input(getFamilySchema).query(async ({ ctx, input }) => {
+    return getFamilyDetails({ familyId: input.familyId, userId: ctx.user.id })
+  }),
+
+  update: protectedProcedure.input(updateFamilySchema).mutation(async ({ ctx, input }) => {
+    return updateFamilyName({ familyId: input.familyId, userId: ctx.user.id, name: input.name })
   }),
 
   invite: protectedProcedure.input(inviteFamilyMemberSchema).mutation(async ({ ctx, input }) => {
-    const member = await db.query.familyMembers.findFirst({
-      where: and(
-        eq(familyMembers.familyId, input.familyId),
-        eq(familyMembers.userId, ctx.user.id),
-      ),
-    })
-
-    if (!member || (member.role !== "OWNER" && member.role !== "ADMIN")) {
+    const isAdmin = await checkIsAdmin({ familyId: input.familyId, userId: ctx.user.id })
+    if (!isAdmin) {
       throw new Error("Only owner/admin can invite members")
     }
 
@@ -31,31 +50,35 @@ export const familyRouter = createTRPCRouter({
       invitedByUserId: ctx.user.id,
       invitedByName: ctx.user.name ?? ctx.user.email,
       email: input.email,
-      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+      appUrl: env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
     })
   }),
 
-  acceptInvite: protectedProcedure
-    .input(acceptFamilyInviteSchema)
-    .mutation(async ({ ctx, input }) => {
-      return acceptInvite({
-        token: input.token,
-        userId: ctx.user.id,
-        userEmail: ctx.user.email,
-      })
-    }),
+  revokeInvite: protectedProcedure.input(revokeInviteSchema).mutation(async ({ ctx, input }) => {
+    return revokeInvite({
+      familyId: input.familyId,
+      actorUserId: ctx.user.id,
+      inviteId: input.inviteId,
+    })
+  }),
+
+  acceptInvite: protectedProcedure.input(acceptFamilyInviteSchema).mutation(async ({ ctx, input }) => {
+    return acceptInvite({
+      token: input.token,
+      userId: ctx.user.id,
+      userEmail: ctx.user.email,
+    })
+  }),
+
+  removeMember: protectedProcedure.input(removeMemberSchema).mutation(async ({ ctx, input }) => {
+    return removeFamilyMember({
+      familyId: input.familyId,
+      actorUserId: ctx.user.id,
+      targetUserId: input.userId,
+    })
+  }),
 
   getMyFamilies: protectedProcedure.query(async ({ ctx }) => {
-    const memberships = await db.query.familyMembers.findMany({
-      where: eq(familyMembers.userId, ctx.user.id),
-    })
-
-    if (memberships.length === 0) {
-      return []
-    }
-
-    const familyIds = memberships.map((item) => item.familyId)
-
-    return db.select().from(families).where(inArray(families.id, familyIds))
+    return getMyFamilies({ userId: ctx.user.id })
   }),
 })

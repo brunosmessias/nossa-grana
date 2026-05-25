@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,40 +16,15 @@ import {
   Plus,
 } from "lucide-react";
 
+import { api } from "@/trpc/react";
 import { Separator } from "@/components/ui/separator";
+import { useInvalidateQueries } from "@/hooks/use-invalidate-queries";
 import { AccountDialog } from "./account-dialog";
 import { BatchImportDialog } from "./batch-import-dialog";
 import { CategoryDialog } from "./category-dialog";
 import { MonthlyView } from "./monthly-view";
 import { SavingsDialog } from "./savings-dialog";
 import { TransactionDialog } from "./transaction-dialog";
-
-type Account = {
-  id: string;
-  familyId: string;
-  name: string;
-  type:
-    | "CHECKING"
-    | "SAVINGS"
-    | "CASH"
-    | "INVESTMENT"
-    | "CREDIT_CARD"
-    | "LOAN"
-    | "GOAL";
-  icon: string;
-  color: string;
-  initialBalanceCents: number;
-  archived: boolean;
-  balanceCents: number;
-};
-
-type Category = {
-  id: string;
-  name: string;
-  kind: "INCOME" | "EXPENSE";
-  icon: string;
-  color: string;
-};
 
 type Transaction = {
   id: string;
@@ -58,15 +33,6 @@ type Transaction = {
   amountCents: number;
   transactionAt: string;
   categoryId: string | null;
-};
-
-type BootstrapPayload = {
-  accounts: Account[];
-  categories: Category[];
-  transactions: Transaction[];
-  members: Array<{ userId: string; role: string }>;
-  invites: Array<{ id: string; email: string; status: string }>;
-  summary: { totalBalanceCents: number };
 };
 
 function brl(cents: number) {
@@ -106,8 +72,6 @@ export function DashboardClient({
   defaultFamilyId: string | null;
 }) {
   const [familyId] = useState(defaultFamilyId ?? "");
-  const [data, setData] = useState<BootstrapPayload | null>(null);
-
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() =>
     getMonthKey(new Date()),
@@ -120,41 +84,46 @@ export function DashboardClient({
   const [savingsDialogOpen, setSavingsDialogOpen] = useState(false);
   const [batchImportOpen, setBatchImportOpen] = useState(false);
 
-  const refresh = async () => {
-    if (!familyId) {
-      setData(null);
-      return;
-    }
+  const enabled = !!familyId;
 
-    const response = await fetch(`/api/mvp/bootstrap?familyId=${familyId}`);
-    const payload = (await response.json()) as
-      | BootstrapPayload
-      | { message: string };
+  const { data: accountsData } = api.accounts.list.useQuery(
+    { familyId },
+    { enabled },
+  );
 
-    if (!response.ok) {
-      toast.error("Erro ao carregar dashboard");
-      return;
-    }
+  const { data: categoriesData } = api.categories.list.useQuery(
+    { familyId },
+    { enabled },
+  );
 
-    const boot = payload as BootstrapPayload;
-    setData(boot);
-    setAvailableMonths(getAvailableMonths(boot.transactions));
-  };
+  const { data: transactionsData } = api.transactions.listAll.useQuery(
+    { familyId },
+    { enabled },
+  );
+
+  const invalidate = useInvalidateQueries();
+
+  const accounts = accountsData?.accounts ?? [];
+  const categories = categoriesData ?? [];
+  const transactions = (transactionsData ?? []) as unknown as Transaction[];
+  const totalBalanceCents = accountsData?.totalBalanceCents ?? 0;
 
   useEffect(() => {
-    void refresh();
-  }, [familyId]);
+    if (transactions.length > 0) {
+      setAvailableMonths(getAvailableMonths(transactions));
+    }
+  }, [transactions]);
 
   const defaultAccountId = useMemo(() => {
-    const checking = data?.accounts.find(
+    const checking = accounts.find(
       (a) => a.type === "CHECKING" && !a.archived,
     );
     return (
       checking?.id ??
-      data?.accounts.find((a) => !a.archived)?.id ??
+      accounts.find((a) => !a.archived)?.id ??
       ""
     );
-  }, [data?.accounts]);
+  }, [accounts]);
 
   const previousMonthTransactions = useMemo(() => {
     const [yearStr, monthStr] = selectedMonth.split("-").map(Number);
@@ -162,20 +131,20 @@ export function DashboardClient({
     date.setMonth(date.getMonth() - 1);
     const prevKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
     return (
-      data?.transactions.filter(
+      transactions.filter(
         (tx) => getMonthKey(new Date(tx.transactionAt)) === prevKey,
       ) ?? []
     );
-  }, [data?.transactions, selectedMonth]);
+  }, [transactions, selectedMonth]);
 
   const currentIdx = availableMonths.indexOf(selectedMonth);
 
   const monthTransactions = useMemo(
     () =>
-      data?.transactions.filter(
+      transactions.filter(
         (tx) => getMonthKey(new Date(tx.transactionAt)) === selectedMonth,
       ) ?? [],
-    [data?.transactions, selectedMonth],
+    [transactions, selectedMonth],
   );
 
   const monthIncome = useMemo(
@@ -196,61 +165,55 @@ export function DashboardClient({
 
   const monthBalance = monthIncome - monthExpense;
 
-  type CategoryWithTotal = Category & { totalCents: number };
+  type CategoryWithTotal = typeof categories[number] & { totalCents: number };
 
   const categoryTotals = useMemo((): CategoryWithTotal[] => {
-    if (!data) return [];
     const map = new Map<string, number>();
     for (const tx of monthTransactions) {
       if (!tx.categoryId) continue;
       if (tx.type !== "EXPENSE") continue;
       map.set(tx.categoryId, (map.get(tx.categoryId) ?? 0) + tx.amountCents);
     }
-    return [...data.categories]
+    return [...categories]
       .filter((cat) => cat.kind === "EXPENSE")
       .map((cat) => ({ ...cat, totalCents: map.get(cat.id) ?? 0 }))
       .filter((cat) => cat.totalCents > 0)
       .sort((a, b) => b.totalCents - a.totalCents);
-  }, [data, monthTransactions]);
+  }, [categories, monthTransactions]);
+
+  const createAccountMutation = api.accounts.upsert.useMutation({
+    onSuccess: () => { void invalidate(["accounts"]) },
+    onError: () => { toast.error("Falha ao criar conta") },
+  });
 
   const createAccount = async (input: {
     name: string;
-    type: Account["type"];
+    type: typeof accounts[number]["type"];
     initialBalanceCents: number;
     icon: string;
     color: string;
   }) => {
-    const response = await fetch("/api/mvp/accounts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ familyId, ...input, archived: false }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Falha ao criar conta");
-    }
-
-    await refresh();
+    await createAccountMutation.mutateAsync({ familyId, ...input, archived: false });
   };
+
+  const createCategoryMutation = api.categories.create.useMutation({
+    onSuccess: () => { void invalidate(["categories"]) },
+    onError: () => { toast.error("Falha ao criar categoria") },
+  });
 
   const createCategory = async (input: {
     name: string;
-    kind: Category["kind"];
+    kind: typeof categories[number]["kind"];
     icon: string;
     color: string;
   }) => {
-    const response = await fetch("/api/mvp/categories", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ familyId, ...input }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Falha ao criar categoria");
-    }
-
-    await refresh();
+    await createCategoryMutation.mutateAsync({ familyId, ...input });
   };
+
+  const createTransactionMutation = api.transactions.create.useMutation({
+    onSuccess: () => { void invalidate(["transactions", "accounts"]) },
+    onError: () => { toast.error("Falha ao criar transação") },
+  });
 
   const handleCreateTransaction = async (txData: {
     accountId: string;
@@ -260,23 +223,13 @@ export function DashboardClient({
     amountCents: number;
     transactionAt: string;
   }) => {
-    const response = await fetch("/api/mvp/transactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ familyId, ...txData }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Falha ao criar transação");
-    }
-
-    await refresh();
+    await createTransactionMutation.mutateAsync({ familyId, ...txData });
   };
 
-  const openTxDialog = useCallback((type: "INCOME" | "EXPENSE") => {
+  const openTxDialog = (type: "INCOME" | "EXPENSE") => {
     setTxDialogType(type);
     setTxDialogOpen(true);
-  }, []);
+  };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -299,7 +252,7 @@ export function DashboardClient({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [openTxDialog]);
+  }, []);
 
   if (!defaultFamilyId) {
     return (
@@ -357,7 +310,7 @@ export function DashboardClient({
           </CardHeader>
           <CardContent>
             <span className="text-2xl font-bold">
-              {data ? brl(monthBalance) : "—"}
+              {brl(monthBalance)}
             </span>
           </CardContent>
         </Card>
@@ -368,7 +321,7 @@ export function DashboardClient({
           </CardHeader>
           <CardContent>
             <span className="text-2xl font-bold">
-              {data ? brl(data.summary.totalBalanceCents) : "—"}
+              {brl(totalBalanceCents)}
             </span>
           </CardContent>
         </Card>
@@ -441,8 +394,8 @@ export function DashboardClient({
       </div>
 
       <TransactionDialog
-        accounts={data?.accounts ?? []}
-        categories={data?.categories ?? []}
+        accounts={accounts}
+        categories={categories}
         defaultType={txDialogType}
         open={txDialogOpen}
         onOpenChange={setTxDialogOpen}
@@ -450,7 +403,7 @@ export function DashboardClient({
       />
 
       <SavingsDialog
-        accounts={data?.accounts ?? []}
+        accounts={accounts}
         open={savingsDialogOpen}
         onOpenChange={setSavingsDialogOpen}
         onSubmit={async () => {
@@ -461,20 +414,20 @@ export function DashboardClient({
         }}
       />
 
-      {data && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && (
+      {transactions.length > 0 && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && (
         <BatchImportDialog
           open={batchImportOpen}
           onOpenChange={setBatchImportOpen}
-          categories={data.categories}
+          categories={categories}
           previousTransactions={previousMonthTransactions}
           selectedMonth={selectedMonth}
           familyId={familyId}
           accountId={defaultAccountId}
-          onSuccess={refresh}
+          onSuccess={async () => { await invalidate(["transactions", "accounts"]) }}
         />
       )}
 
-      {data && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && !batchImportOpen && (
+      {transactions.length > 0 && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && !batchImportOpen && (
         <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border/60 bg-muted/30 p-8 text-center">
           <p className="text-sm text-muted-foreground">
             Nenhuma transação neste mês
@@ -486,10 +439,10 @@ export function DashboardClient({
         </div>
       )}
 
-      {data && (
+      {transactions.length > 0 && (
         <MonthlyView
           transactions={monthTransactions}
-          categories={data.categories}
+          categories={categories}
           onAddTransaction={openTxDialog}
         />
       )}

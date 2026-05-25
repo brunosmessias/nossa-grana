@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Logo } from "@/components/logo"
 import { CheckCircle2, AlertCircle } from "lucide-react"
+import { api } from "@/trpc/react"
 
 export function AcceptInviteClient({ token }: { token: string }) {
   const router = useRouter()
@@ -13,24 +14,19 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(false)
   const [accepted, setAccepted] = useState(false)
 
+  const acceptMutation = api.family.acceptInvite.useMutation()
+
   const accept = async () => {
     setLoading(true)
     setMessage("")
-    const response = await fetch("/api/family/invite/accept", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    })
-
-    const data = (await response.json()) as { message?: string }
-    if (!response.ok) {
-      setMessage(data.message ?? "Não foi possível aceitar convite")
+    try {
+      await acceptMutation.mutateAsync({ token })
+      setAccepted(true)
+      setTimeout(() => router.push("/"), 2000)
+    } catch {
+      setMessage("Não foi possível aceitar convite")
       setLoading(false)
-      return
     }
-
-    setAccepted(true)
-    setTimeout(() => router.push("/"), 2000)
   }
 
   return (

@@ -24,3 +24,16 @@ export const upsertAccountSchema = z.object({
 })
 
 export type UpsertAccountInput = z.infer<typeof upsertAccountSchema>
+
+export const archiveAccountSchema = z.object({
+  familyId: z.string().uuid(),
+  accountId: z.string().uuid(),
+})
+
+export const transferBetweenAccountsSchema = z.object({
+  familyId: z.string().uuid(),
+  fromAccountId: z.string().uuid(),
+  toAccountId: z.string().uuid(),
+  amountCents: z.number().int().positive(),
+  description: z.string().min(2).max(120).optional(),
+})

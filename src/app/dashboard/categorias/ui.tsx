@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/sonner"
 import { ChevronLeft, ChevronRight, Plus, Tag } from "lucide-react"
+import { api } from "@/trpc/react"
+import { useInvalidateQueries } from "@/hooks/use-invalidate-queries"
 import { CategoryCard, CategoryFormDialog, ExpenseDonutChart, CategoryLineChart, TrendRanking } from "./components"
 
 type Category = {
@@ -15,11 +17,6 @@ type Category = {
 type Transaction = {
   id: string; description: string; type: "INCOME" | "EXPENSE"
   amountCents: number; transactionAt: string; categoryId: string | null; accountId: string
-}
-
-type BootstrapPayload = {
-  accounts: Array<{ id: string }>; categories: Category[]; transactions: Transaction[]
-  members: Array<{ userId: string; role: string }>; summary: { totalBalanceCents: number }
 }
 
 function brl(cents: number) {
@@ -44,33 +41,42 @@ function getAvailableMonths(transactions: Transaction[]): string[] {
 }
 
 export function CategoriesPageClient({ familyId }: { familyId: string }) {
-  const [data, setData] = useState<BootstrapPayload | null>(null)
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [selectedMonth, setSelectedMonth] = useState(() => getMonthKey(new Date()))
   const [createOpen, setCreateOpen] = useState(false)
   const [editCategory, setEditCategory] = useState<Category | null>(null)
   const [selectedChartCategory, setSelectedChartCategory] = useState<string | null>(null)
 
-  const refresh = async () => {
-    const res = await fetch(`/api/mvp/bootstrap?familyId=${familyId}`)
-    if (!res.ok) { toast.error("Erro ao carregar dados"); return }
-    const boot = (await res.json()) as BootstrapPayload
-    setData(boot); setAvailableMonths(getAvailableMonths(boot.transactions))
-  }
+  const { data: categoriesData } = api.categories.list.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
 
-  useEffect(() => { void refresh() }, [familyId])
+  const { data: transactionsData } = api.transactions.listAll.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
+
+  const invalidate = useInvalidateQueries()
+
+  const transactions = (transactionsData ?? []) as unknown as Transaction[]
+  const categories = (categoriesData ?? []) as unknown as Category[]
+
+  useEffect(() => {
+    if (transactions.length > 0) setAvailableMonths(getAvailableMonths(transactions))
+  }, [transactions])
 
   const currentIdx = availableMonths.indexOf(selectedMonth)
   const prevMonth = currentIdx < availableMonths.length - 1 ? availableMonths[currentIdx + 1] : null
 
   const monthTx = useMemo(
-    () => data?.transactions.filter((t) => getMonthKey(new Date(t.transactionAt)) === selectedMonth) ?? [],
-    [data?.transactions, selectedMonth],
+    () => transactions.filter((t) => getMonthKey(new Date(t.transactionAt)) === selectedMonth),
+    [transactions, selectedMonth],
   )
 
   const prevMonthTx = useMemo(
-    () => prevMonth ? (data?.transactions.filter((t) => getMonthKey(new Date(t.transactionAt)) === prevMonth) ?? []) : [],
-    [data?.transactions, prevMonth],
+    () => prevMonth ? transactions.filter((t) => getMonthKey(new Date(t.transactionAt)) === prevMonth) : [],
+    [transactions, prevMonth],
   )
 
   const categorySpent = useMemo(() => {
@@ -85,36 +91,43 @@ export function CategoriesPageClient({ familyId }: { familyId: string }) {
     return map
   }, [prevMonthTx])
 
-  const categories = data?.categories ?? []
   const expenseCategories = categories.filter((c) => c.kind === "EXPENSE")
   const incomeCategories = categories.filter((c) => c.kind === "INCOME")
 
+  const createCategoryMutation = api.categories.create.useMutation({
+    onSuccess: () => { void invalidate(["categories"]) },
+    onError: () => { toast.error("Falha ao criar categoria") },
+  })
+
   const handleCreate = async (input: { name: string; kind: "INCOME" | "EXPENSE"; icon: string; color: string; monthlyBudgetCents?: number }) => {
-    const res = await fetch("/api/mvp/categories", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ familyId, ...input }) })
-    if (!res.ok) throw new Error("Falha ao criar categoria")
-    await refresh(); setCreateOpen(false)
+    await createCategoryMutation.mutateAsync({ familyId, ...input })
+    setCreateOpen(false)
   }
 
+  const updateCategoryMutation = api.categories.update.useMutation({
+    onSuccess: () => { void invalidate(["categories"]) },
+    onError: () => { toast.error("Falha ao atualizar categoria") },
+  })
+
   const handleUpdate = async (input: { categoryId: string; name?: string; icon?: string; color?: string; monthlyBudgetCents?: number }) => {
-    const res = await fetch("/api/mvp/categories/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) })
-    if (!res.ok) throw new Error("Falha ao atualizar categoria")
-    await refresh(); setEditCategory(null)
+    await updateCategoryMutation.mutateAsync({ familyId, ...input })
+    setEditCategory(null)
   }
 
   const lineChartData = useMemo(() => {
-    if (!selectedChartCategory || !data) return []
+    if (!selectedChartCategory) return []
     const months = availableMonths.slice(0, 6).reverse()
     return months.map((mk) => {
       const [y, m] = mk.split("-").map(Number)
-      const total = data.transactions.filter((t) => t.categoryId === selectedChartCategory && getMonthKey(new Date(t.transactionAt)) === mk).reduce((s, t) => s + t.amountCents, 0)
+      const total = transactions.filter((t) => t.categoryId === selectedChartCategory && getMonthKey(new Date(t.transactionAt)) === mk).reduce((s, t) => s + t.amountCents, 0)
       const label = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(new Date(y, m - 1, 1))
       return { month: label, total }
     })
-  }, [selectedChartCategory, data, availableMonths])
+  }, [selectedChartCategory, transactions, availableMonths])
 
   const selectedCat = selectedChartCategory ? categories.find((c) => c.id === selectedChartCategory) : null
 
-  if (!data) return <div className="flex items-center justify-center py-12"><p className="text-muted-foreground">Carregando...</p></div>
+  if (!categoriesData || !transactionsData) return <div className="flex items-center justify-center py-12"><p className="text-muted-foreground">Carregando...</p></div>
 
   return (
     <div className="space-y-6">

@@ -1,5 +1,5 @@
 #!/bin/sh
 echo "Running database migrations..."
-bun run db:migrate
+bunx drizzle-kit migrate
 echo "Starting application..."
 exec bun server.js

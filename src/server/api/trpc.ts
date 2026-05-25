@@ -1,12 +1,12 @@
 import { initTRPC, TRPCError } from "@trpc/server"
-import { headers } from "next/headers"
 import superjson from "superjson"
+import { ZodError } from "zod"
 
 import { auth } from "@/server/auth/auth"
 
-export async function createTRPCContext() {
+export async function createTRPCContext(opts: { headers: Headers }) {
   const session = await auth.api.getSession({
-    headers: await headers(),
+    headers: opts.headers,
   })
 
   return {
@@ -18,6 +18,16 @@ type Context = Awaited<ReturnType<typeof createTRPCContext>>
 
 const t = initTRPC.context<Context>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        zodError:
+          error.cause instanceof ZodError ? error.cause.flatten() : null,
+      },
+    }
+  },
 })
 
 const isAuthed = t.middleware(({ ctx, next }) => {
@@ -34,5 +44,6 @@ const isAuthed = t.middleware(({ ctx, next }) => {
 })
 
 export const createTRPCRouter = t.router
+export const createCallerFactory = t.createCallerFactory
 export const publicProcedure = t.procedure
 export const protectedProcedure = t.procedure.use(isAuthed)

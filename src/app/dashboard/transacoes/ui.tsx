@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { z } from "zod"
 import { createTransactionSchema } from "@/shared/schemas/transaction"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -15,12 +15,13 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Trash2, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react"
+import { Plus, Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { api } from "@/trpc/react"
+import { useInvalidateQueries } from "@/hooks/use-invalidate-queries"
 
 type Account = { id: string; name: string; type: string; icon: string; color: string; archived: boolean }
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string; color: string }
 type Transaction = { id: string; description: string; type: "INCOME" | "EXPENSE"; amountCents: number; transactionAt: string; categoryId: string; accountId: string }
-type Bootstrap = { accounts: Account[]; categories: Category[]; transactions: Transaction[] }
 type GroupMode = "list" | "day" | "week" | "month" | "category"
 
 function brl(cents: number) {
@@ -52,10 +53,13 @@ function gLabel(k: string, m: GroupMode, cm: Map<string, Category>): string {
 const formSchema = createTransactionSchema.pick({ categoryId: true, amountCents: true, description: true }).extend({ date: z.string().min(1, "Informe uma data"), accountId: z.string().min(1, "Selecione uma conta") })
 type FormErrors = Partial<Record<keyof z.infer<typeof formSchema>, string>>
 
-function TxFormDialog({ mode, transaction, accounts, categories, familyId, open, onOpenChange, onSuccess }: {
+function TxFormDialog({ mode, transaction, accounts, categories, familyId, open, onOpenChange }: {
   mode: "create" | "edit"; transaction?: Transaction | null; accounts: Account[]; categories: Category[]
-  familyId: string; open: boolean; onOpenChange: (v: boolean) => void; onSuccess: () => Promise<void>
+  familyId: string; open: boolean; onOpenChange: (v: boolean) => void
 }) {
+  const createMutation = api.transactions.create.useMutation()
+  const updateMutation = api.transactions.update.useMutation()
+  const invalidate = useInvalidateQueries()
   const [txType, setTxType] = useState<"INCOME" | "EXPENSE">("EXPENSE")
   const [accId, setAccId] = useState("")
   const [catId, setCatId] = useState("")
@@ -86,13 +90,13 @@ function TxFormDialog({ mode, transaction, accounts, categories, familyId, open,
     try {
       const [y, m, d] = r.data.date.split("-").map(Number); const iso = new Date(y, m - 1, d, 12).toISOString()
       if (mode === "edit" && transaction) {
-        const res = await fetch("/api/mvp/transactions/update", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId: transaction.id, accountId: r.data.accountId, categoryId: r.data.categoryId, description: r.data.description, amountCents: r.data.amountCents, transactionAt: iso }) })
-        if (!res.ok) throw new Error(); toast.success("Transação atualizada")
+        await updateMutation.mutateAsync({ familyId, transactionId: transaction.id, accountId: r.data.accountId, categoryId: r.data.categoryId, description: r.data.description, amountCents: r.data.amountCents, transactionAt: iso })
+        toast.success("Transação atualizada")
       } else {
-        const res = await fetch("/api/mvp/transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ familyId, type: txType, accountId: r.data.accountId, categoryId: r.data.categoryId, description: r.data.description, amountCents: r.data.amountCents, transactionAt: iso }) })
-        if (!res.ok) throw new Error(); toast.success(txType === "EXPENSE" ? "Despesa registrada" : "Receita registrada")
+        await createMutation.mutateAsync({ familyId, type: txType, accountId: r.data.accountId, categoryId: r.data.categoryId, description: r.data.description, amountCents: r.data.amountCents, transactionAt: iso })
+        toast.success(txType === "EXPENSE" ? "Despesa registrada" : "Receita registrada")
       }
-      onOpenChange(false); await onSuccess()
+      onOpenChange(false); await invalidate(["transactions", "accounts"])
     } catch { toast.error("Não foi possível salvar.") } finally { setSubmitting(false) }
   }
 
@@ -116,15 +120,17 @@ function TxFormDialog({ mode, transaction, accounts, categories, familyId, open,
   )
 }
 
-function DeleteDialog({ open, onOpenChange, txId, desc, onSuccess }: {
-  open: boolean; onOpenChange: (v: boolean) => void; txId: string; desc: string; onSuccess: () => Promise<void>
+function DeleteDialog({ open, onOpenChange, txId, familyId, desc }: {
+  open: boolean; onOpenChange: (v: boolean) => void; txId: string; familyId: string; desc: string
 }) {
+  const deleteMutation = api.transactions.delete.useMutation()
+  const invalidate = useInvalidateQueries()
   const [loading, setLoading] = useState(false)
   const del = async () => {
     setLoading(true)
     try {
-      const r = await fetch("/api/mvp/transactions/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId: txId }) })
-      if (!r.ok) throw new Error(); toast.success("Transação excluída"); onOpenChange(false); await onSuccess()
+      await deleteMutation.mutateAsync({ familyId, transactionId: txId })
+      toast.success("Transação excluída"); onOpenChange(false); await invalidate(["transactions", "accounts"])
     } catch { toast.error("Erro ao excluir") } finally { setLoading(false) }
   }
   return (
@@ -137,20 +143,12 @@ function DeleteDialog({ open, onOpenChange, txId, desc, onSuccess }: {
   )
 }
 
-function SummarySidebar({ items }: { items: Transaction[] }) {
-  const inc = useMemo(() => items.filter((t) => t.type === "INCOME").reduce((s, t) => s + t.amountCents, 0), [items])
-  const exp = useMemo(() => items.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + t.amountCents, 0), [items])
-  const net = inc - exp; const cnt = items.length; const avg = cnt > 0 ? Math.round((inc + exp) / cnt) : 0
+function SummarySidebar({ total, totalPages, page }: { total: number; totalPages: number; page: number }) {
   return (
     <Card><CardHeader className="text-base font-semibold">Resumo</CardHeader><CardContent className="space-y-3">
-      <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-muted-foreground"><ArrowUpRight className="size-4 text-green-500" />Receitas</span><span className="font-semibold text-green-500">{brl(inc)}</span></div>
+      <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Total de transações</span><span className="font-semibold">{total}</span></div>
       <Separator />
-      <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-muted-foreground"><ArrowDownRight className="size-4 text-red-500" />Despesas</span><span className="font-semibold text-red-500">{brl(exp)}</span></div>
-      <Separator />
-      <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-sm text-muted-foreground"><Minus className="size-4" />Saldo líquido</span><span className={`font-semibold ${net >= 0 ? "text-green-500" : "text-red-500"}`}>{brl(net)}</span></div>
-      <Separator />
-      <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Transações</span><span className="font-semibold">{cnt}</span></div>
-      <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Média</span><span className="font-semibold">{brl(avg)}</span></div>
+      <div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Página</span><span className="font-semibold">{page} de {totalPages}</span></div>
     </CardContent></Card>
   )
 }
@@ -175,61 +173,69 @@ function TxRow({ tx, cat, acc, showGroup, gLabel: gLbl, gTotal, onEdit, onDel }:
 }
 
 export function TransactionsPageClient({ familyId }: { familyId: string }) {
-  const [data, setData] = useState<Bootstrap | null>(null)
   const [search, setSearch] = useState(""); const [debounced, setDebounced] = useState("")
-  const [page, setPage] = useState(1); const [gm, setGm] = useState<GroupMode>("list")
+  const [page, setPage] = useState(1)
+  const [gm, setGm] = useState<GroupMode>("list")
   const [fType, setFType] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL")
   const [fAcc, setFAcc] = useState("ALL"); const [fCat, setFCat] = useState("ALL")
   const [fDateFrom, setFDateFrom] = useState(""); const [fDateTo, setFDateTo] = useState("")
-  const [fValMin, setFValMin] = useState(0); const [fValMax, setFValMax] = useState(0)
   const [formOpen, setFormOpen] = useState(false); const [formMode, setFormMode] = useState<"create" | "edit">("create")
   const [editTx, setEditTx] = useState<Transaction | null>(null)
   const [delOpen, setDelOpen] = useState(false); const [delTx, setDelTx] = useState<Transaction | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  const refresh = useCallback(async () => {
-    const r = await fetch(`/api/mvp/bootstrap?familyId=${familyId}`)
-    if (r.ok) setData(await r.json()); else toast.error("Erro ao carregar dados")
-  }, [familyId])
+  const { data: categoriesData } = api.categories.list.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
 
-  useEffect(() => { void refresh() }, [refresh])
+  const { data: accountsData } = api.accounts.list.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
+
+  const { data: txData } = api.transactions.list.useQuery(
+    {
+      familyId,
+      page,
+      pageSize: 20,
+      search: debounced || undefined,
+      type: fType !== "ALL" ? fType : undefined,
+      accountId: fAcc !== "ALL" ? fAcc : undefined,
+      categoryId: fCat !== "ALL" ? fCat : undefined,
+      dateFrom: fDateFrom || undefined,
+      dateTo: fDateTo || undefined,
+    },
+    { enabled: !!familyId },
+  )
+
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => { setDebounced(search); setPage(1) }, 300)
     return () => { if (timer.current) clearTimeout(timer.current) }
   }, [search])
 
-  const catMap = useMemo(() => { const m = new Map<string, Category>(); if (data) for (const c of data.categories) m.set(c.id, c); return m }, [data])
-  const accMap = useMemo(() => { const m = new Map<string, Account>(); if (data) for (const a of data.accounts) m.set(a.id, a); return m }, [data])
+  const categories = (categoriesData ?? []) as unknown as Category[]
+  const accounts = (accountsData?.accounts ?? []) as unknown as Account[]
+  const items = (txData?.items ?? []) as unknown as Transaction[]
+  const total = txData?.total ?? 0
+  const totalPages = txData?.totalPages ?? 1
 
-  const filtered = useMemo(() => {
-    if (!data) return []
-    let l = [...data.transactions]
-    if (debounced) l = l.filter((t) => t.description.toLowerCase().includes(debounced.toLowerCase()))
-    if (fType !== "ALL") l = l.filter((t) => t.type === fType)
-    if (fAcc !== "ALL") l = l.filter((t) => t.accountId === fAcc)
-    if (fCat !== "ALL") l = l.filter((t) => t.categoryId === fCat)
-    if (fDateFrom) l = l.filter((t) => t.transactionAt.split("T")[0] >= fDateFrom)
-    if (fDateTo) l = l.filter((t) => t.transactionAt.split("T")[0] <= fDateTo)
-    if (fValMin > 0) l = l.filter((t) => t.amountCents >= fValMin)
-    if (fValMax > 0) l = l.filter((t) => t.amountCents <= fValMax)
-    return l.sort((a, b) => new Date(b.transactionAt).getTime() - new Date(a.transactionAt).getTime())
-  }, [data, debounced, fType, fAcc, fCat, fDateFrom, fDateTo, fValMin, fValMax])
+  const catMap = useMemo(() => { const m = new Map<string, Category>(); for (const c of categories) m.set(c.id, c); return m }, [categories])
+  const accMap = useMemo(() => { const m = new Map<string, Account>(); for (const a of accounts) m.set(a.id, a); return m }, [accounts])
 
   const groupTotals = useMemo(() => {
     const m = new Map<string, number>()
     if (gm === "list") return m
-    for (const tx of filtered) { const k = gKey(tx, gm); m.set(k, (m.get(k) ?? 0) + tx.amountCents) }
+    for (const tx of items) { const k = gKey(tx, gm); m.set(k, (m.get(k) ?? 0) + tx.amountCents) }
     return m
-  }, [filtered, gm])
+  }, [items, gm])
 
-  const pp = 20; const tp = Math.max(1, Math.ceil(filtered.length / pp))
-  const sp = Math.min(page, tp); const paged = filtered.slice((sp - 1) * pp, sp * pp)
-  const afc = [fType !== "ALL", fAcc !== "ALL", fCat !== "ALL", !!fDateFrom, !!fDateTo, fValMin > 0, fValMax > 0].filter(Boolean).length
-  const clearF = () => { setFType("ALL"); setFAcc("ALL"); setFCat("ALL"); setFDateFrom(""); setFDateTo(""); setFValMin(0); setFValMax(0); setPage(1) }
+  const afc = [fType !== "ALL", fAcc !== "ALL", fCat !== "ALL", !!fDateFrom, !!fDateTo].filter(Boolean).length
+  const clearF = () => { setFType("ALL"); setFAcc("ALL"); setFCat("ALL"); setFDateFrom(""); setFDateTo(""); setPage(1) }
   const openCreate = () => { setFormMode("create"); setEditTx(null); setFormOpen(true) }
 
-  if (!data) return <div className="text-muted-foreground">Carregando...</div>
+  if (!txData) return <div className="text-muted-foreground">Carregando...</div>
   const gLabels: Record<string, string> = { list: "Lista", day: "Por dia", week: "Por semana", month: "Por mês", category: "Por categoria" }
 
   return (
@@ -244,16 +250,13 @@ export function TransactionsPageClient({ familyId }: { familyId: string }) {
           <div className="relative w-full sm:w-auto"><Search className="absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por descrição..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-8 w-full pl-8 sm:w-56" /></div>
           <Select value={gm} onValueChange={(v) => { if (v) { setGm(v as GroupMode); setPage(1) } }}><SelectTrigger size="sm" className="w-full sm:w-auto"><SelectValue>{(v: string | null) => v ? gLabels[v] ?? v : "Lista"}</SelectValue></SelectTrigger><SelectContent>{(["list", "day", "week", "month", "category"] as const).map((g) => <SelectItem key={g} value={g}>{gLabels[g]}</SelectItem>)}</SelectContent></Select>
           <Select value={fType} onValueChange={(v) => { if (v) { setFType(v as typeof fType); setPage(1) } }}><SelectTrigger size="sm" className="w-full sm:w-auto"><SelectValue>{(v: string | null) => v === "ALL" ? "Todos" : v === "INCOME" ? "Receitas" : "Despesas"}</SelectValue></SelectTrigger><SelectContent><SelectItem value="ALL">Todos</SelectItem><SelectItem value="INCOME">Receitas</SelectItem><SelectItem value="EXPENSE">Despesas</SelectItem></SelectContent></Select>
-          <Select value={fAcc} onValueChange={(v) => { if (v) { setFAcc(v); setPage(1) } }}><SelectTrigger size="sm" className="w-full sm:w-auto"><SelectValue>{(v: string | null) => v === "ALL" ? "Contas" : accMap.get(v ?? "")?.name ?? (v ?? "")}</SelectValue></SelectTrigger><SelectContent><SelectItem value="ALL">Contas</SelectItem>{data.accounts.filter((a) => !a.archived).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent></Select>
-          <Select value={fCat} onValueChange={(v) => { if (v) { setFCat(v); setPage(1) } }}><SelectTrigger size="sm" className="w-full sm:w-auto"><SelectValue>{(v: string | null) => v === "ALL" ? "Categorias" : catMap.get(v ?? "")?.name ?? (v ?? "")}</SelectValue></SelectTrigger><SelectContent><SelectItem value="ALL">Categorias</SelectItem>{data.categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={fAcc} onValueChange={(v) => { if (v) { setFAcc(v); setPage(1) } }}><SelectTrigger size="sm" className="w-full sm:w-auto"><SelectValue>{(v: string | null) => v === "ALL" ? "Contas" : accMap.get(v ?? "")?.name ?? (v ?? "")}</SelectValue></SelectTrigger><SelectContent><SelectItem value="ALL">Contas</SelectItem>{accounts.filter((a) => !a.archived).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={fCat} onValueChange={(v) => { if (v) { setFCat(v); setPage(1) } }}><SelectTrigger size="sm" className="w-full sm:w-auto"><SelectValue>{(v: string | null) => v === "ALL" ? "Categorias" : catMap.get(v ?? "")?.name ?? (v ?? "")}</SelectValue></SelectTrigger><SelectContent><SelectItem value="ALL">Categorias</SelectItem>{categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Input type="date" value={fDateFrom} onChange={(e) => { setFDateFrom(e.target.value); setPage(1) }} className="h-7 w-full text-xs sm:w-36" />
           <span className="text-xs text-muted-foreground">até</span>
           <Input type="date" value={fDateTo} onChange={(e) => { setFDateTo(e.target.value); setPage(1) }} className="h-7 w-full text-xs sm:w-36" />
-          <div className="w-full sm:w-auto"><CurrencyInput value={fValMin} onChange={(v) => { setFValMin(v); setPage(1) }} /></div>
-          <span className="text-xs text-muted-foreground">até</span>
-          <div className="w-full sm:w-auto"><CurrencyInput value={fValMax} onChange={(v) => { setFValMax(v); setPage(1) }} /></div>
           {afc > 0 && <Badge variant="secondary">{afc} filtro{afc > 1 ? "s" : ""} ativo{afc > 1 ? "s" : ""}</Badge>}
           {afc > 0 && <Button variant="ghost" size="sm" onClick={clearF}>Limpar</Button>}
         </div>
@@ -272,17 +275,27 @@ export function TransactionsPageClient({ familyId }: { familyId: string }) {
               <TableHead className="w-10 sm:w-16" />
             </TableRow></TableHeader>
             <TableBody>
-              {paged.length === 0 && <TableRow><TableCell colSpan={7} className="h-16 text-center text-muted-foreground">Nenhuma transação registrada</TableCell></TableRow>}
-              {(() => { let last = ""; return paged.map((tx) => { const gk = gKey(tx, gm); const show = gk !== last && gm !== "list"; last = gk; const cat = catMap.get(tx.categoryId); const acc = accMap.get(tx.accountId); return <TxRow key={tx.id} tx={tx} cat={cat} acc={acc} showGroup={show} gLabel={gLabel(gk, gm, catMap)} gTotal={groupTotals.get(gk) ?? 0} onEdit={(t) => { setFormMode("edit"); setEditTx(t); setFormOpen(true) }} onDel={(t) => { setDelTx(t); setDelOpen(true) }} /> }) })()}
+              {items.length === 0 && <TableRow><TableCell colSpan={7} className="h-16 text-center text-muted-foreground">Nenhuma transação registrada</TableCell></TableRow>}
+              {(() => { let last = ""; return items.map((tx) => { const gk = gKey(tx, gm); const show = gk !== last && gm !== "list"; last = gk; const cat = catMap.get(tx.categoryId); const acc = accMap.get(tx.accountId); return <TxRow key={tx.id} tx={tx} cat={cat} acc={acc} showGroup={show} gLabel={gLabel(gk, gm, catMap)} gTotal={groupTotals.get(gk) ?? 0} onEdit={(t) => { setFormMode("edit"); setEditTx(t); setFormOpen(true) }} onDel={(t) => { setDelTx(t); setDelOpen(true) }} /> }) })()}
             </TableBody>
           </Table></CardContent></Card>
-          {tp > 1 && (<div className="flex items-center justify-center gap-2 pt-4"><Button variant="outline" size="sm" disabled={sp <= 1} onClick={() => setPage((p) => p - 1)}>Anterior</Button><span className="text-sm text-muted-foreground">{sp} de {tp}</span><Button variant="outline" size="sm" disabled={sp >= tp} onClick={() => setPage((p) => p + 1)}>Próxima</Button></div>)}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                <ChevronLeft className="size-4" /> Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground">{page} de {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                Próxima <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          )}
         </div>
-        <div className="w-full shrink-0 lg:w-64"><SummarySidebar items={filtered} /></div>
+        <div className="w-full shrink-0 lg:w-64"><SummarySidebar total={total} totalPages={totalPages} page={page} /></div>
       </div>
 
-      <TxFormDialog mode={formMode} transaction={editTx} accounts={data.accounts} categories={data.categories} familyId={familyId} open={formOpen} onOpenChange={setFormOpen} onSuccess={refresh} />
-      <DeleteDialog open={delOpen} onOpenChange={setDelOpen} txId={delTx?.id ?? ""} desc={delTx?.description ?? ""} onSuccess={refresh} />
+      <TxFormDialog mode={formMode} transaction={editTx} accounts={accounts} categories={categories} familyId={familyId} open={formOpen} onOpenChange={setFormOpen} />
+      <DeleteDialog open={delOpen} onOpenChange={setDelOpen} txId={delTx?.id ?? ""} familyId={familyId} desc={delTx?.description ?? ""} />
     </>
   )
 }

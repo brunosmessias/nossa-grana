@@ -27,6 +27,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./
 
+# Install drizzle-kit + drizzle-orm for runtime migrations (no project package.json)
+RUN bun init -y && bun add drizzle-kit drizzle-orm postgres
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

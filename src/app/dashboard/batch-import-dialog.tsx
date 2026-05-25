@@ -31,6 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Copy, Plus, Trash2 } from "lucide-react";
+import { api } from "@/trpc/react";
 
 type Category = {
   id: string;
@@ -306,6 +307,8 @@ export function BatchImportDialog({
     return map;
   }, [categories]);
 
+  const batchImportMutation = api.transactions.batchImport.useMutation()
+
   const handleSubmit = async () => {
     const validRows = sortedRows.filter(
       (r) =>
@@ -323,26 +326,17 @@ export function BatchImportDialog({
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/mvp/transactions/batch-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          familyId,
-          accountId,
-          transactions: validRows.map((r) => ({
-            categoryId: r.categoryId,
-            type: r.type,
-            description: r.description.trim(),
-            amountCents: r.amountCents,
-            day: Math.min(r.day, maxDay),
-          })),
-        }),
+      await batchImportMutation.mutateAsync({
+        familyId,
+        accountId,
+        transactions: validRows.map((r) => ({
+          categoryId: r.categoryId,
+          type: r.type,
+          description: r.description.trim(),
+          amountCents: r.amountCents,
+          day: Math.min(r.day, maxDay),
+        })),
       });
-
-      if (!response.ok) {
-        const data = (await response.json()) as { message?: string };
-        throw new Error(data.message ?? "Erro ao importar");
-      }
 
       toast.success(`${validRows.length} transações importadas`);
       onOpenChange(false);

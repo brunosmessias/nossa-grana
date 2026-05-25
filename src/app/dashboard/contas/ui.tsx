@@ -24,6 +24,8 @@ import { IconBadge } from "@/components/ui/icon-badge"
 import {
   Plus, Archive, ChevronDown, ChevronUp, PiggyBank, CheckCircle2,
 } from "lucide-react"
+import { api } from "@/trpc/react"
+import { useInvalidateQueries } from "@/hooks/use-invalidate-queries"
 
 type AccountType = "CHECKING" | "SAVINGS" | "CASH" | "INVESTMENT" | "CREDIT_CARD" | "LOAN" | "GOAL"
 
@@ -37,8 +39,6 @@ type Transaction = {
   id: string; accountId: string; type: "INCOME" | "EXPENSE"
   amountCents: number; transactionAt: string
 }
-
-type BootstrapPayload = { accounts: Account[]; transactions: Transaction[] }
 
 function brl(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
@@ -169,6 +169,7 @@ type FormErrors = Partial<Record<"name", string>>
 function AccountFormDialog({ open, onOpenChange, familyId, account, onSuccess }: {
   open: boolean; onOpenChange: (v: boolean) => void; familyId: string; account: Account | null; onSuccess: () => Promise<void>
 }) {
+  const upsertMutation = api.accounts.upsert.useMutation()
   const isEdit = !!account
   const [name, setName] = useState("")
   const [type, setType] = useState<AccountType>("CHECKING")
@@ -201,8 +202,7 @@ function AccountFormDialog({ open, onOpenChange, familyId, account, onSuccess }:
       if (account) body.id = account.id
       if (targetCents > 0) body.targetAmountCents = targetCents
       if (targetDate) body.targetDate = new Date(targetDate + "T12:00:00").toISOString()
-      const res = await fetch("/api/mvp/accounts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      if (!res.ok) throw new Error()
+      await upsertMutation.mutateAsync(body as Parameters<typeof upsertMutation.mutateAsync>[0])
       toast.success(isEdit ? "Conta atualizada" : "Conta criada"); onOpenChange(false); await onSuccess()
     } catch { toast.error("Não foi possível salvar. Tente novamente.") } finally { setSubmitting(false) }
   }
@@ -236,9 +236,10 @@ const transferSchema = z.object({
 })
 type TransferErrors = Partial<Record<keyof z.infer<typeof transferSchema>, string>>
 
-function TransferDialog({ open, onOpenChange, accounts, onSuccess }: {
-  open: boolean; onOpenChange: (v: boolean) => void; accounts: Account[]; onSuccess: () => Promise<void>
+function TransferDialog({ open, onOpenChange, familyId, accounts, onSuccess }: {
+  open: boolean; onOpenChange: (v: boolean) => void; familyId: string; accounts: Account[]; onSuccess: () => Promise<void>
 }) {
+  const transferMutation = api.accounts.transfer.useMutation()
   const [fromId, setFromId] = useState("")
   const [toId, setToId] = useState("")
   const [amount, setAmount] = useState(0)
@@ -257,8 +258,7 @@ function TransferDialog({ open, onOpenChange, accounts, onSuccess }: {
     if (!result.success) { const fe: TransferErrors = {}; for (const i of result.error.issues) fe[i.path[0] as keyof TransferErrors] = i.message; setErrors(fe); return }
     setErrors({}); setSubmitting(true)
     try {
-      const res = await fetch("/api/mvp/accounts/transfer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(result.data) })
-      if (!res.ok) { const j = await res.json(); throw new Error(j.message) }
+      await transferMutation.mutateAsync({ familyId, ...result.data })
       toast.success("Transferência realizada"); onOpenChange(false); await onSuccess()
     } catch (err) { toast.error(err instanceof Error ? err.message : "Erro na transferência") } finally { setSubmitting(false) }
   }
@@ -280,43 +280,53 @@ function TransferDialog({ open, onOpenChange, accounts, onSuccess }: {
 }
 
 export function AccountsPageClient({ familyId }: { familyId: string }) {
-  const [data, setData] = useState<BootstrapPayload | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editAccount, setEditAccount] = useState<Account | null>(null)
   const [transferOpen, setTransferOpen] = useState(false)
   const [archivedOpen, setArchivedOpen] = useState(false)
 
+  const upsertMutation = api.accounts.upsert.useMutation()
+
+  const { data: accountsData } = api.accounts.list.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
+
+  const { data: transactionsData } = api.transactions.listAll.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
+
+  const invalidate = useInvalidateQueries()
+
+  const allAccounts = (accountsData?.accounts ?? []) as unknown as Account[]
+  const transactions = (transactionsData ?? []) as unknown as Transaction[]
+
   const refresh = async () => {
-    const res = await fetch(`/api/mvp/bootstrap?familyId=${familyId}`)
-    if (res.ok) setData(await res.json())
-    else toast.error("Erro ao carregar contas")
+    await invalidate(["accounts", "transactions"])
   }
 
-  useEffect(() => { void refresh() }, [])
-
-  const active = useMemo(() => data?.accounts.filter((a) => !a.archived) ?? [], [data])
-  const archived = useMemo(() => data?.accounts.filter((a) => a.archived) ?? [], [data])
+  const active = useMemo(() => allAccounts.filter((a) => !a.archived), [allAccounts])
+  const archived = useMemo(() => allAccounts.filter((a) => a.archived), [allAccounts])
   const totalBalance = useMemo(() => active.reduce((s, a) => s + a.balanceCents, 0), [active])
 
   const sparklines = useMemo(() => {
-    if (!data) return new Map<string, { month: string; balance: number }[]>()
     const map = new Map<string, { month: string; balance: number }[]>()
-    for (const acc of data.accounts) map.set(acc.id, computeSparklineData(acc, data.transactions))
+    for (const acc of allAccounts) map.set(acc.id, computeSparklineData(acc, transactions))
     return map
-  }, [data])
+  }, [allAccounts, transactions])
 
   const handleArchive = async (account: Account) => {
     try {
-      const res = await fetch("/api/mvp/accounts", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ familyId, id: account.id, name: account.name, type: account.type, icon: account.icon, color: account.color, initialBalanceCents: account.initialBalanceCents, archived: true }),
+      await upsertMutation.mutateAsync({
+        familyId, id: account.id, name: account.name, type: account.type,
+        icon: account.icon, color: account.color, initialBalanceCents: account.initialBalanceCents, archived: true,
       })
-      if (!res.ok) throw new Error()
       toast.success(`${account.name} arquivada`); await refresh()
     } catch { toast.error("Erro ao arquivar") }
   }
 
-  if (!data) return <div className="flex items-center justify-center py-12"><p className="text-muted-foreground">Carregando...</p></div>
+  if (!accountsData) return <div className="flex items-center justify-center py-12"><p className="text-muted-foreground">Carregando...</p></div>
 
   return (
     <div className="space-y-6">
@@ -357,7 +367,7 @@ export function AccountsPageClient({ familyId }: { familyId: string }) {
       )}
 
       <AccountFormDialog open={formOpen} onOpenChange={setFormOpen} familyId={familyId} account={editAccount} onSuccess={refresh} />
-      <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} accounts={data.accounts} onSuccess={refresh} />
+      <TransferDialog open={transferOpen} onOpenChange={setTransferOpen} familyId={familyId} accounts={allAccounts} onSuccess={refresh} />
     </div>
   )
 }

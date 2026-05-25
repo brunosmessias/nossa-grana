@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { cn } from "@/lib/utils"
+import { api } from "@/trpc/react"
 import {
   CreditCard,
   Home,
@@ -93,6 +94,11 @@ export function OnboardingClient({ userName }: { userName: string }) {
   const [invitedEmails, setInvitedEmails] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
+  const createFamilyMutation = api.family.create.useMutation()
+  const createCategoryMutation = api.categories.create.useMutation()
+  const upsertAccountMutation = api.accounts.upsert.useMutation()
+  const inviteMemberMutation = api.family.invite.useMutation()
+
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
     () => new Set(suggestedCategories.map((c) => c.name))
   )
@@ -102,22 +108,21 @@ export function OnboardingClient({ userName }: { userName: string }) {
 
   const createFamily = async () => {
     setLoading(true)
-    const response = await fetch("/api/family", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: familyName }),
-    })
-
-    const data = (await response.json()) as { familyId?: string; message?: string }
-    if (!response.ok || !data.familyId) {
-      toast.error(data.message ?? "Erro ao criar família")
+    try {
+      const result = await createFamilyMutation.mutateAsync({ name: familyName })
+      const famId = (result as { familyId?: string }).familyId
+      if (!famId) {
+        toast.error("Erro ao criar família")
+        setLoading(false)
+        return
+      }
+      setFamilyId(famId)
       setLoading(false)
-      return
+      setCurrentStep("categories")
+    } catch {
+      toast.error("Erro ao criar família")
+      setLoading(false)
     }
-
-    setFamilyId(data.familyId)
-    setLoading(false)
-    setCurrentStep("categories")
   }
 
   const toggleCategory = (name: string) => {
@@ -139,16 +144,12 @@ export function OnboardingClient({ userName }: { userName: string }) {
     try {
       await Promise.all(
         toCreate.map((cat) =>
-          fetch("/api/mvp/categories", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              familyId,
-              name: cat.name,
-              kind: cat.kind,
-              icon: cat.icon,
-              color: cat.color,
-            }),
+          createCategoryMutation.mutateAsync({
+            familyId,
+            name: cat.name,
+            kind: cat.kind,
+            icon: cat.icon,
+            color: cat.color,
           })
         )
       )
@@ -186,17 +187,13 @@ export function OnboardingClient({ userName }: { userName: string }) {
     try {
       await Promise.all(
         validAccounts.map((acc) =>
-          fetch("/api/mvp/accounts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              familyId,
-              name: acc.name,
-              type: acc.type,
-              icon: acc.icon,
-              color: acc.color,
-              initialBalanceCents: acc.initialBalanceCents,
-            }),
+          upsertAccountMutation.mutateAsync({
+            familyId,
+            name: acc.name,
+            type: acc.type,
+            icon: acc.icon,
+            color: acc.color,
+            initialBalanceCents: acc.initialBalanceCents,
           })
         )
       )
@@ -210,22 +207,15 @@ export function OnboardingClient({ userName }: { userName: string }) {
 
   const invite = async () => {
     setLoading(true)
-    const response = await fetch("/api/family/invite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ familyId, email: inviteEmail }),
-    })
-
-    const data = (await response.json()) as { message?: string }
-    if (!response.ok) {
-      toast.error(data.message ?? "Erro ao enviar convite")
+    try {
+      await inviteMemberMutation.mutateAsync({ familyId, email: inviteEmail })
+      setInvitedEmails((prev) => [...prev, inviteEmail])
+      setInviteEmail("")
       setLoading(false)
-      return
+    } catch {
+      toast.error("Erro ao enviar convite")
+      setLoading(false)
     }
-
-    setInvitedEmails((prev) => [...prev, inviteEmail])
-    setInviteEmail("")
-    setLoading(false)
   }
 
   const goBack = () => {

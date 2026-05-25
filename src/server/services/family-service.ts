@@ -351,3 +351,32 @@ export async function getFamilyDetails(params: {
     currentRole: member.role,
   }
 }
+
+export async function getFamilyMember(params: {
+  familyId: string
+  userId: string
+}) {
+  return db.query.familyMembers.findFirst({
+    where: and(eq(familyMembers.familyId, params.familyId), eq(familyMembers.userId, params.userId)),
+  })
+}
+
+export async function getMyFamilies(params: { userId: string }) {
+  const memberships = await db.query.familyMembers.findMany({
+    where: eq(familyMembers.userId, params.userId),
+  })
+
+  if (memberships.length === 0) return []
+
+  return db.select().from(families).where(inArray(families.id, memberships.map((m) => m.familyId)))
+}
+
+export async function checkIsAdmin(params: {
+  familyId: string
+  userId: string
+}): Promise<boolean> {
+  const member = await db.query.familyMembers.findFirst({
+    where: and(eq(familyMembers.familyId, params.familyId), eq(familyMembers.userId, params.userId)),
+  })
+  return member?.role === "OWNER" || member?.role === "ADMIN"
+}

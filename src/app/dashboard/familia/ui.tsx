@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { z } from "zod"
 
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Mail, Pencil, Trash2, Copy, Shield, ShieldCheck, UserCircle } from "lucide-react"
+import { api } from "@/trpc/react"
 
 type FamilyDetails = {
   family: { id: string; name: string; ownerUserId: string }
@@ -58,7 +59,6 @@ const inviteSchema = z.object({
 })
 
 export function FamilyPageClient({ familyId }: { familyId: string }) {
-  const [data, setData] = useState<FamilyDetails | null>(null)
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteOpen, setInviteOpen] = useState(false)
   const [editNameOpen, setEditNameOpen] = useState(false)
@@ -66,21 +66,28 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
   const [removeConfirm, setRemoveConfirm] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const isAdmin = data?.currentRole === "OWNER" || data?.currentRole === "ADMIN"
-  const isOwner = data?.currentRole === "OWNER"
+  const inviteMemberMutation = api.family.invite.useMutation()
+  const updateFamilyMutation = api.family.update.useMutation()
+  const removeMemberMutation = api.family.removeMember.useMutation()
+  const revokeInviteMutation = api.family.revokeInvite.useMutation()
 
-  const refresh = async () => {
-    const res = await fetch("/api/family/manage")
-    if (res.ok) {
-      const json = await res.json()
-      setData(json)
-      if (json.family) setFamilyName(json.family.name)
-    }
-  }
+  const { data, refetch } = api.family.getDetails.useQuery(
+    { familyId },
+    { enabled: !!familyId },
+  )
+
+  const details = data as unknown as FamilyDetails | null
+
+  const refresh = useCallback(async () => {
+    await refetch()
+  }, [refetch])
 
   useEffect(() => {
-    void refresh()
-  }, [])
+    if (details?.family) setFamilyName(details.family.name)
+  }, [details])
+
+  const isAdmin = details?.currentRole === "OWNER" || details?.currentRole === "ADMIN"
+  const isOwner = details?.currentRole === "OWNER"
 
   const handleInvite = async () => {
     const result = inviteSchema.safeParse({ email: inviteEmail })
@@ -91,17 +98,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
 
     setSubmitting(true)
     try {
-      const res = await fetch("/api/family/invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ familyId, email: inviteEmail }),
-      })
-
-      if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json.message ?? "Erro ao enviar convite")
-      }
-
+      await inviteMemberMutation.mutateAsync({ familyId, email: inviteEmail })
       toast.success(`Convite enviado para ${inviteEmail}`)
       setInviteEmail("")
       setInviteOpen(false)
@@ -118,17 +115,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
 
     setSubmitting(true)
     try {
-      const res = await fetch("/api/family/manage", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: familyName }),
-      })
-
-      if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json.message ?? "Erro ao atualizar família")
-      }
-
+      await updateFamilyMutation.mutateAsync({ familyId, name: familyName })
       toast.success("Nome da família atualizado")
       setEditNameOpen(false)
       await refresh()
@@ -142,17 +129,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
   const handleRemoveMember = async (userId: string) => {
     setSubmitting(true)
     try {
-      const res = await fetch("/api/family/members/remove", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      })
-
-      if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json.message ?? "Erro ao remover membro")
-      }
-
+      await removeMemberMutation.mutateAsync({ familyId, userId })
       toast.success("Membro removido")
       setRemoveConfirm(null)
       await refresh()
@@ -165,17 +142,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
 
   const handleRevokeInvite = async (inviteId: string) => {
     try {
-      const res = await fetch("/api/family/invite/revoke", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inviteId }),
-      })
-
-      if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json.message ?? "Erro ao revogar convite")
-      }
-
+      await revokeInviteMutation.mutateAsync({ familyId, inviteId })
       toast.success("Convite revogado")
       await refresh()
     } catch (err) {
@@ -189,7 +156,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
     toast.success("Link copiado!")
   }
 
-  if (!data) {
+  if (!details) {
     return <div className="flex items-center justify-center py-12"><p className="text-muted-foreground">Carregando...</p></div>
   }
 
@@ -197,9 +164,9 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
     <div className="space-y-6">
       <section className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h2 className="truncate text-2xl font-bold text-primary sm:text-3xl">{data.family.name}</h2>
+          <h2 className="truncate text-2xl font-bold text-primary sm:text-3xl">{details.family.name}</h2>
           <p className="text-sm text-muted-foreground">
-            {data.members.length} membro{data.members.length !== 1 ? "s" : ""} · {data.invites.filter((i) => i.status === "PENDING").length} convite{data.invites.filter((i) => i.status === "PENDING").length !== 1 ? "s" : ""} pendente{data.invites.filter((i) => i.status === "PENDING").length !== 1 ? "s" : ""}
+            {details.members.length} membro{details.members.length !== 1 ? "s" : ""} · {details.invites.filter((i) => i.status === "PENDING").length} convite{details.invites.filter((i) => i.status === "PENDING").length !== 1 ? "s" : ""} pendente{details.invites.filter((i) => i.status === "PENDING").length !== 1 ? "s" : ""}
           </p>
         </div>
         {isOwner && (
@@ -252,7 +219,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
         </div>
 
         <div className="grid gap-3">
-          {data.members.map((member) => (
+          {details.members.map((member) => (
             <Card key={member.userId} className="border-border/50">
               <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
@@ -270,7 +237,7 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
                     {member.role === "ADMIN" && <ShieldCheck className="mr-1 size-3" />}
                     {roleLabels[member.role]}
                   </Badge>
-                  {isAdmin && member.role !== "OWNER" && data.members.length > 1 && (
+                  {isAdmin && member.role !== "OWNER" && details.members.length > 1 && (
                     <Dialog open={removeConfirm === member.userId} onOpenChange={(open) => setRemoveConfirm(open ? member.userId : null)}>
                       <DialogTrigger render={<Button variant="ghost" size="icon-xs" className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>} />
                       <DialogContent>
@@ -292,11 +259,11 @@ export function FamilyPageClient({ familyId }: { familyId: string }) {
         </div>
       </section>
 
-      {data.invites.length > 0 && (
+      {details.invites.length > 0 && (
         <section className="space-y-4">
           <h3 className="text-lg font-semibold">Convites</h3>
           <div className="grid gap-3">
-            {data.invites.map((invite) => {
+            {details.invites.map((invite) => {
               const isExpired = new Date(invite.expiresAt) < new Date()
               const statusLabel = invite.status === "PENDING" && isExpired ? "Expirado" : invite.status === "PENDING" ? "Pendente" : invite.status === "ACCEPTED" ? "Aceito" : invite.status === "DECLINED" ? "Recusado" : "Expirado"
               const statusColor = invite.status === "ACCEPTED" ? "text-green-500" : invite.status === "PENDING" && !isExpired ? "text-yellow-500" : "text-muted-foreground"

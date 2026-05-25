@@ -63,26 +63,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  migrate:
-    name: Database Migrate
-    needs: build-and-push
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: oven-sh/setup-bun@v2
-
-      - run: bun install --frozen-lockfile
-
-      - name: Run migrations
-        run: bun run db:migrate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
   deploy:
     name: Trigger Dokploy Deploy
-    needs: migrate
+    needs: build-and-push
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
