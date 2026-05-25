@@ -22,7 +22,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
     try {
       await acceptMutation.mutateAsync({ token })
       setAccepted(true)
-      setTimeout(() => router.push("/"), 2000)
+      setTimeout(() => router.push("/dashboard"), 2000)
     } catch {
       setMessage("Não foi possível aceitar convite")
       setLoading(false)
