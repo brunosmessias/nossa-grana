@@ -12,9 +12,9 @@ The fix has two pieces: the month selector must let the user visit any month (on
 
 ## Goals
 
-- [ ] User can navigate to any month in the past or future, one month at a time, with no implicit skipping
-- [ ] "Importar do mês anterior" card appears only when the previous calendar month has at least one transaction
-- [ ] When the user clicks the import CTA on an empty month whose previous month is also empty, the system shows a clear message instead of opening an empty dialog
+- [x] User can navigate to any month in the past or future, one month at a time, with no implicit skipping
+- [x] "Importar do mês anterior" card appears only when the previous calendar month has at least one transaction
+- [x] When the user clicks the import CTA on an empty month whose previous month is also empty, the system shows a clear message instead of opening an empty dialog
 
 ## Out of Scope
 
@@ -71,15 +71,15 @@ The fix has two pieces: the month selector must let the user visit any month (on
 
 | Requirement ID | Story                            | Phase   | Status  |
 | -------------- | -------------------------------- | ------- | ------- |
-| MONTH-01       | P1: selector visits every month  | Design  | Pending |
-| MONTH-02       | P1: empty month renders explicitly | Design | Pending |
-| MONTH-03       | P2: import card gated by M-1 data | Design | Pending |
-| MONTH-04       | P2: empty M-1 shows toast        | Design  | Pending |
+| MONTH-01       | P1: selector visits every month  | Design  | Done    |
+| MONTH-02       | P1: empty month renders explicitly | Design | Done    |
+| MONTH-03       | P2: import card gated by M-1 data | Design | Done    |
+| MONTH-04       | P2: empty M-1 shows toast        | Design  | Done    |
 
-**Coverage:** 4 total, 0 mapped to tasks, 4 unmapped ⚠️
+**Coverage:** 4 total, 4 done ✅
 
 ## Success Criteria
 
-- [ ] User can step from April to June and see May in between
-- [ ] Import card never opens an empty dialog
-- [ ] No regression in the existing batch import happy path (M has data from M-1)
+- [x] User can step from April to June and see May in between
+- [x] Import card never opens an empty dialog
+- [x] No regression in the existing batch import happy path (M has data from M-1)

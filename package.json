@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "bun typecheck && bun lint && bun test ./src/",
+    "check": "bun typecheck && bun lint && bun run test ./src/",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push"
