@@ -29,6 +29,7 @@
 - [x] Move to Tasks phase per feature (4 tasks.md files)
 - [ ] Implement in the order: MONTH → SORT → TXPAID → TXEDIT (unblocks most users first)
 - [x] SORT: implement + verify (T1–T5 done, bun check pass)
+- [x] TXEDIT: implement + verify (T1–T5 done, bun check pass)
 
 ## Pre-existing concerns flagged during design
 
@@ -42,6 +43,15 @@
 - `TransactionSortKey` and `SortDirection` types exported from `src/shared/schemas/transaction.ts` (DRY with the Zod enum).
 - Added a 3rd lightweight `transactions.list({ page: 1, pageSize: 1 })` call in the dashboard to know if the family has any transaction at all (replaces the old `transactions.length > 0` check that came from `listAll`).
 
+## Edit transaction implementation (2026-06-11)
+
+- Implemented TXEDIT-01..03 per `.specs/features/transactions-edit/`. T1–T5 done; `bun check` (typecheck + lint + unit tests) passes.
+- `TransactionDialog` is now mode-aware: optional `initialTransaction` + `onUpdate` props turn it into the edit form. Title switches ("Editar despesa/receita"), submit button reads "Salvar" instead of "Criar".
+- In edit mode the dialog renders an account `<Select>` prefilled from `initialTransaction.accountId`. The `clientSchema` now requires `accountId` (Zod) so the field is validated like the others.
+- `MonthlyView` gained an optional `onEditTransaction` prop. When provided, a 5th column appears with a `<Pencil />` button (`opacity-0 group-hover:opacity-100 focus-within:opacity-100`, `aria-label="Editar transação"`). Empty-state `colSpan` is now 5 when the column is present.
+- `/dashboard/transacoes` `TxRow` got a matching `<Pencil />` button in the actions cell (next to the existing trash), `stopPropagation` on click so it doesn't also trigger the whole-row edit shortcut.
+- `dashboard/ui.tsx` owns `editingTx` state; clears it on close so the next open is create. Audit logging was already in `transactionService.updateTransaction` — no server changes.
+
 ## Deferred ideas
 
 - Per-user persisted sort
@@ -51,3 +61,4 @@
 - Auto-mark-as-paid on import (with a "marcar todas como pagas" toggle in the import dialog)
 - Calendar heatmap in the month selector
 - "Skip to today" button
+- Migrate `TransactionDialog` (and `TxFormDialog`) to TanStack Form — pre-existing AGENTS.md violation, separate from TXEDIT. The current form uses raw `useState` for fields.

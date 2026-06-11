@@ -16,29 +16,39 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { SortableHeader } from "@/components/ui/sortable-header"
-import { Plus, Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, Search, Trash2, ChevronLeft, ChevronRight, Pencil } from "lucide-react"
 import { api } from "@/trpc/react"
 import { useInvalidateQueries } from "@/hooks/use-invalidate-queries"
 
 type Account = { id: string; name: string; type: string; icon: string; color: string; archived: boolean }
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; icon: string; color: string }
-type Transaction = { id: string; description: string; type: "INCOME" | "EXPENSE"; amountCents: number; transactionAt: string; categoryId: string; accountId: string }
+type Transaction = { id: string; description: string; type: "INCOME" | "EXPENSE"; amountCents: number; transactionAt: Date | string; categoryId: string; accountId: string }
 type GroupMode = "list" | "day" | "week" | "month" | "category"
 
 function brl(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
 }
 
-function fmtShort(iso: string) {
+function fmtShort(value: Date | string) {
+  const iso = typeof value === "string" ? value : value.toISOString()
   return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(new Date(iso))
+}
+
+function toIsoString(value: Date | string): string {
+  return typeof value === "string" ? value : value.toISOString()
+}
+
+function toDateInputValue(value: Date | string): string {
+  return toIsoString(value).split("T")[0] ?? ""
 }
 
 function gKey(tx: Transaction, m: GroupMode): string {
   if (m === "list") return ""
-  if (m === "day") return tx.transactionAt.split("T")[0]
-  if (m === "month") return tx.transactionAt.substring(0, 7)
+  const iso = toIsoString(tx.transactionAt)
+  if (m === "day") return iso.split("T")[0]
+  if (m === "month") return iso.substring(0, 7)
   if (m === "category") return tx.categoryId || "__none__"
-  const d = new Date(tx.transactionAt)
+  const d = new Date(iso)
   const j = new Date(d.getFullYear(), 0, 1)
   const w = Math.ceil(((d.getTime() - j.getTime()) / 864e5 + j.getDay() + 1) / 7)
   return `${d.getFullYear()}-W${String(w).padStart(2, "0")}`
@@ -76,7 +86,7 @@ function TxFormDialog({ mode, transaction, accounts, categories, familyId, open,
     if (!open) return
     if (mode === "edit" && transaction) {
       setTxType(transaction.type); setAccId(transaction.accountId); setCatId(transaction.categoryId)
-      setAmount(transaction.amountCents); setDate(transaction.transactionAt.split("T")[0]); setDesc(transaction.description)
+      setAmount(transaction.amountCents); setDate(toDateInputValue(transaction.transactionAt)); setDesc(transaction.description)
     } else {
       setTxType("EXPENSE"); setAccId(active[0]?.id ?? ""); setCatId(""); setAmount(0)
       setDate(new Date().toISOString().split("T")[0]); setDesc("")
@@ -167,7 +177,12 @@ function TxRow({ tx, cat, acc, showGroup, gLabel: gLbl, gTotal, onEdit, onDel }:
         <TableCell className="hidden lg:table-cell text-sm">{acc?.name ?? "—"}</TableCell>
         <TableCell className="hidden sm:table-cell"><Badge variant={tx.type === "INCOME" ? "default" : "destructive"} className="text-xs">{tx.type === "INCOME" ? "Receita" : "Despesa"}</Badge></TableCell>
         <TableCell className={`text-right font-semibold ${tx.type === "INCOME" ? "text-green-500" : "text-red-500"}`}>{tx.type === "INCOME" ? "+" : "−"}{brl(tx.amountCents)}</TableCell>
-        <TableCell><Button variant="ghost" size="icon-xs" onClick={(e) => { e.stopPropagation(); onDel(tx) }}><Trash2 className="size-3 text-muted-foreground" /></Button></TableCell>
+        <TableCell>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon-xs" aria-label="Editar transação" onClick={(e) => { e.stopPropagation(); onEdit(tx) }}><Pencil className="size-3 text-muted-foreground" /></Button>
+            <Button variant="ghost" size="icon-xs" aria-label="Excluir transação" onClick={(e) => { e.stopPropagation(); onDel(tx) }}><Trash2 className="size-3 text-muted-foreground" /></Button>
+          </div>
+        </TableCell>
       </TableRow>
     </>
   )

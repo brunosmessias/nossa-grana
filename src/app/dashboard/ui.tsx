@@ -34,6 +34,7 @@ type Transaction = {
   amountCents: number;
   transactionAt: string;
   categoryId: string | null;
+  accountId: string;
 };
 
 function brl(cents: number) {
@@ -70,6 +71,7 @@ export function DashboardClient({
   const [txDialogType, setTxDialogType] = useState<"INCOME" | "EXPENSE">(
     "EXPENSE",
   );
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [savingsDialogOpen, setSavingsDialogOpen] = useState(false);
   const [batchImportOpen, setBatchImportOpen] = useState(false);
   const [sortBy, setSortBy] = useState<TransactionSortKey>("transactionAt");
@@ -272,8 +274,35 @@ export function DashboardClient({
     await createTransactionMutation.mutateAsync({ familyId, ...txData });
   };
 
+  const updateTransactionMutation = api.transactions.update.useMutation({
+    onSuccess: () => { void invalidate(["transactions", "accounts"]) },
+    onError: () => { toast.error("Falha ao atualizar transação") },
+  });
+
+  const handleUpdateTransaction = async (txData: {
+    accountId: string;
+    categoryId: string;
+    type: "INCOME" | "EXPENSE";
+    description: string;
+    amountCents: number;
+    transactionAt: string;
+  }) => {
+    if (!editingTx) return;
+    await updateTransactionMutation.mutateAsync({
+      familyId,
+      transactionId: editingTx.id,
+      ...txData,
+    });
+  };
+
   const openTxDialog = (type: "INCOME" | "EXPENSE") => {
+    setEditingTx(null);
     setTxDialogType(type);
+    setTxDialogOpen(true);
+  };
+
+  const openEditDialog = (tx: Transaction) => {
+    setEditingTx(tx);
     setTxDialogOpen(true);
   };
 
@@ -444,8 +473,13 @@ export function DashboardClient({
         categories={categories}
         defaultType={txDialogType}
         open={txDialogOpen}
-        onOpenChange={setTxDialogOpen}
+        onOpenChange={(v) => {
+          if (!v) setEditingTx(null);
+          setTxDialogOpen(v);
+        }}
         onSubmit={handleCreateTransaction}
+        initialTransaction={editingTx}
+        onUpdate={handleUpdateTransaction}
       />
 
       <SavingsDialog
@@ -493,6 +527,7 @@ export function DashboardClient({
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={handleSort}
+          onEditTransaction={openEditDialog}
         />
       )}
     </>

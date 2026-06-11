@@ -40,9 +40,29 @@ type Category = {
   color: string
 }
 
+type InitialTransaction = {
+  id: string
+  description: string
+  type: "INCOME" | "EXPENSE"
+  amountCents: number
+  transactionAt: Date | string
+  categoryId: string | null
+  accountId: string
+}
+
+function toDateInputValue(value: Date | string): string {
+  const iso = typeof value === "string" ? value : value.toISOString()
+  return iso.split("T")[0] ?? ""
+}
+
 const titleByType: Record<"INCOME" | "EXPENSE", string> = {
   EXPENSE: "Nova despesa",
   INCOME: "Nova receita",
+}
+
+const editTitleByType: Record<"INCOME" | "EXPENSE", string> = {
+  EXPENSE: "Editar despesa",
+  INCOME: "Editar receita",
 }
 
 const clientSchema = createTransactionSchema.pick({
@@ -51,6 +71,7 @@ const clientSchema = createTransactionSchema.pick({
   description: true,
 }).extend({
   date: z.string().min(1, "Informe uma data"),
+  accountId: z.string().min(1, "Selecione uma conta"),
 })
 
 type FormErrors = Partial<Record<keyof z.infer<typeof clientSchema>, string>>
@@ -62,6 +83,8 @@ export function TransactionDialog({
   open,
   onOpenChange,
   onSubmit,
+  initialTransaction = null,
+  onUpdate,
 }: {
   accounts: Account[]
   categories: Category[]
@@ -76,7 +99,19 @@ export function TransactionDialog({
     amountCents: number
     transactionAt: string
   }) => Promise<void>
+  initialTransaction?: InitialTransaction | null
+  onUpdate?: (data: {
+    accountId: string
+    categoryId: string
+    type: "INCOME" | "EXPENSE"
+    description: string
+    amountCents: number
+    transactionAt: string
+  }) => Promise<void>
 }) {
+  const isEdit = !!initialTransaction
+  const activeType: "INCOME" | "EXPENSE" = isEdit ? initialTransaction.type : defaultType
+  const [txAccountId, setTxAccountId] = useState("")
   const [txCategoryId, setTxCategoryId] = useState("")
   const [txAmountCents, setTxAmountCents] = useState(0)
   const [txDate, setTxDate] = useState(() => new Date().toISOString().split("T")[0])
@@ -84,26 +119,44 @@ export function TransactionDialog({
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
 
-  const defaultAccountId = useMemo(() => {
-    const checking = accounts.find((a) => a.type === "CHECKING" && !a.archived)
-    return checking?.id ?? accounts.find((a) => !a.archived)?.id ?? ""
-  }, [accounts])
+  const activeAccounts = useMemo(() => accounts.filter((a) => !a.archived), [accounts])
 
-  const categoriesByType = categories.filter((c) => c.kind === defaultType)
+  const defaultAccountId = useMemo(() => {
+    if (isEdit && initialTransaction?.accountId) {
+      return initialTransaction.accountId
+    }
+    const checking = activeAccounts.find((a) => a.type === "CHECKING")
+    return checking?.id ?? activeAccounts[0]?.id ?? ""
+  }, [activeAccounts, isEdit, initialTransaction])
+
+  const categoriesByType = useMemo(
+    () => categories.filter((c) => c.kind === activeType),
+    [categories, activeType],
+  )
 
   useEffect(() => {
     if (open) {
-      setTxCategoryId("")
-      setTxAmountCents(0)
-      setTxDate(new Date().toISOString().split("T")[0])
-      setTxDescription("")
+      if (isEdit && initialTransaction) {
+        setTxAccountId(initialTransaction.accountId)
+        setTxCategoryId(initialTransaction.categoryId ?? "")
+        setTxAmountCents(initialTransaction.amountCents)
+        setTxDate(toDateInputValue(initialTransaction.transactionAt))
+        setTxDescription(initialTransaction.description)
+      } else {
+        setTxAccountId(defaultAccountId)
+        setTxCategoryId("")
+        setTxAmountCents(0)
+        setTxDate(new Date().toISOString().split("T")[0])
+        setTxDescription("")
+      }
       setErrors({})
       setSubmitting(false)
     }
-  }, [open])
+  }, [open, isEdit, initialTransaction, defaultAccountId])
 
   const handleSubmit = async () => {
     const result = clientSchema.safeParse({
+      accountId: txAccountId || defaultAccountId,
       categoryId: txCategoryId || categoriesByType[0]?.id || "",
       amountCents: txAmountCents,
       date: txDate,
@@ -124,19 +177,28 @@ export function TransactionDialog({
     setSubmitting(true)
 
     try {
-      const [year, month, day] = txDate.split("-").map(Number)
+      const [year, month, day] = result.data.date.split("-").map(Number)
       const date = new Date(year, month - 1, day, 12, 0, 0)
 
-      await onSubmit({
-        accountId: defaultAccountId,
+      const payload = {
+        accountId: result.data.accountId,
         categoryId: result.data.categoryId,
-        type: defaultType,
+        type: activeType,
         description: result.data.description,
         amountCents: result.data.amountCents,
         transactionAt: date.toISOString(),
-      })
+      }
 
-      toast.success(defaultType === "EXPENSE" ? "Despesa registrada" : "Receita registrada")
+      if (isEdit) {
+        if (!onUpdate) {
+          throw new Error("onUpdate handler não fornecido")
+        }
+        await onUpdate(payload)
+        toast.success("Transação atualizada")
+      } else {
+        await onSubmit(payload)
+        toast.success(activeType === "EXPENSE" ? "Despesa registrada" : "Receita registrada")
+      }
       onOpenChange(false)
     } catch {
       toast.error("Não foi possível salvar. Tente novamente.")
@@ -149,12 +211,52 @@ export function TransactionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{titleByType[defaultType]}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? editTitleByType[activeType] : titleByType[defaultType]}
+          </DialogTitle>
           <DialogDescription>
-            {defaultType === "EXPENSE" ? "Registre uma nova despesa" : "Registre uma nova receita"}
+            {isEdit
+              ? "Altere os dados da transação"
+              : activeType === "EXPENSE"
+                ? "Registre uma nova despesa"
+                : "Registre uma nova receita"}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {isEdit && (
+            <div className="space-y-2">
+              <Label>Conta</Label>
+              <Select
+                value={txAccountId || defaultAccountId}
+                onValueChange={(v) => {
+                  if (v) {
+                    setTxAccountId(v)
+                    setErrors((e) => ({ ...e, accountId: undefined }))
+                  }
+                }}
+              >
+                <SelectTrigger aria-invalid={!!errors.accountId} className="w-full">
+                  <SelectValue placeholder="Selecionar">
+                    {(v: string | null) =>
+                      v
+                        ? activeAccounts.find((a) => a.id === v)?.name ?? v
+                        : "Selecionar"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {activeAccounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.accountId && (
+                <p className="text-xs text-destructive">{errors.accountId}</p>
+              )}
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Categoria</Label>
             <Select value={txCategoryId || categoriesByType[0]?.id || ""} onValueChange={(v) => { if (v) { setTxCategoryId(v); setErrors((e) => ({ ...e, categoryId: undefined })) } }}>
@@ -192,7 +294,9 @@ export function TransactionDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={submitting}>{submitting ? "Salvando..." : "Criar"}</Button>
+          <Button onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Salvando..." : isEdit ? "Salvar" : "Criar"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

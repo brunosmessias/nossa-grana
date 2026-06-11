@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { SortableHeader } from "@/components/ui/sortable-header";
 import type { SortDirection, TransactionSortKey } from "@/shared/schemas/transaction";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 
 type Category = {
   id: string;
@@ -32,6 +32,7 @@ type Transaction = {
   amountCents: number;
   transactionAt: string;
   categoryId: string | null;
+  accountId: string;
 };
 
 function brl(cents: number) {
@@ -51,6 +52,7 @@ function TransactionSection({
   sortBy,
   sortDir,
   onSort,
+  onEdit,
 }: {
   title: string;
   transactions: Transaction[];
@@ -61,6 +63,7 @@ function TransactionSection({
   sortBy: TransactionSortKey;
   sortDir: SortDirection;
   onSort: (key: TransactionSortKey) => void;
+  onEdit?: (tx: Transaction) => void;
 }) {
   return (
     <section className="w-full rounded-md border-2 border-border/60 p-4 bg-white dark:bg-muted/10">
@@ -106,13 +109,14 @@ function TransactionSection({
               onSort={onSort}
               align="right"
             />
+            {onEdit && <TableHead className="w-8" />}
           </TableRow>
         </TableHeader>
         <TableBody>
           {transactions.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={4}
+                colSpan={onEdit ? 5 : 4}
                 className="h-16 text-center text-sm text-muted-foreground"
               >
                 Nenhuma transação encontrada
@@ -125,7 +129,7 @@ function TransactionSection({
               ? categoryMap.get(tx.categoryId)
               : null;
             return (
-              <TableRow key={tx.id}>
+              <TableRow key={tx.id} className="group">
                 <TableCell className="text-sm font-medium">
                   {new Intl.DateTimeFormat("pt-BR", {
                     day: "2-digit",
@@ -148,6 +152,22 @@ function TransactionSection({
                 <TableCell className={`text-right font-semibold ${valueColor}`}>
                   {brl(tx.amountCents)}
                 </TableCell>
+                {onEdit && (
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label="Editar transação"
+                      className="opacity-0 group-hover:opacity-100 focus-within:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(tx);
+                      }}
+                    >
+                      <Pencil className="size-3 text-muted-foreground" />
+                    </Button>
+                  </TableCell>
+                )}
               </TableRow>
             );
           })}
@@ -164,6 +184,7 @@ export function MonthlyView({
   sortBy,
   sortDir,
   onSort,
+  onEditTransaction,
 }: {
   transactions: Transaction[];
   categories: Category[];
@@ -171,6 +192,7 @@ export function MonthlyView({
   sortBy: TransactionSortKey;
   sortDir: SortDirection;
   onSort: (key: TransactionSortKey) => void;
+  onEditTransaction?: (tx: Transaction) => void;
 }) {
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
@@ -213,6 +235,7 @@ export function MonthlyView({
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={onSort}
+          onEdit={onEditTransaction}
         />
       </div>
 
@@ -227,6 +250,7 @@ export function MonthlyView({
           sortBy={sortBy}
           sortDir={sortDir}
           onSort={onSort}
+          onEdit={onEditTransaction}
         />
       </div>
     </div>
