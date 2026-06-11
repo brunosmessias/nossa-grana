@@ -355,8 +355,8 @@ export function DashboardClient({
           <Button
             variant="ghost"
             size="icon-sm"
-            disabled={!canGoNext}
-            onClick={goToNext}
+            disabled={!canGoPrev}
+            onClick={goToPrev}
           >
             <ChevronLeft className="size-5" />
           </Button>
@@ -366,8 +366,8 @@ export function DashboardClient({
           <Button
             variant="ghost"
             size="icon-sm"
-            disabled={!canGoPrev}
-            onClick={goToPrev}
+            disabled={!canGoNext}
+            onClick={goToNext}
           >
             <ChevronRight className="size-5" />
           </Button>

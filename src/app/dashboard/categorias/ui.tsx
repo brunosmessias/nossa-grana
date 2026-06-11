@@ -129,9 +129,9 @@ export function CategoriesPageClient({ familyId, familyCreatedMonth }: { familyI
         <h2 className="text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">Categorias</h2>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon-sm" disabled={!canGoNext} onClick={goToNext}><ChevronLeft className="size-5" /></Button>
+            <Button variant="ghost" size="icon-sm" disabled={!canGoPrev} onClick={goToPrev}><ChevronLeft className="size-5" /></Button>
             <span className="min-w-36 text-center text-sm font-semibold capitalize sm:min-w-44">{formatMonthLabel(selectedMonth)}</span>
-            <Button variant="ghost" size="icon-sm" disabled={!canGoPrev} onClick={goToPrev}><ChevronRight className="size-5" /></Button>
+            <Button variant="ghost" size="icon-sm" disabled={!canGoNext} onClick={goToNext}><ChevronRight className="size-5" /></Button>
           </div>
           <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1 size-3" /> Nova categoria</Button>
         </div>
