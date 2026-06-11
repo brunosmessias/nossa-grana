@@ -58,6 +58,9 @@ export const orderBySchema = z.object({
   orderDir: z.enum(["asc", "desc"]).default("desc"),
 })
 
+export type TransactionSortKey = z.infer<typeof orderBySchema>["orderBy"]
+export type SortDirection = z.infer<typeof orderBySchema>["orderDir"]
+
 export const listTransactionsSchema = paginationSchema
   .merge(orderBySchema)
   .extend({
