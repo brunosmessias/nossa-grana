@@ -13,6 +13,16 @@ export async function getUserFamilyId(userId: string): Promise<string | null> {
   return membership?.familyId ?? null
 }
 
+export async function getFamilyCreatedAt(
+  familyId: string,
+): Promise<Date | null> {
+  const family = await db.query.families.findFirst({
+    where: eq(families.id, familyId),
+    columns: { createdAt: true },
+  })
+  return family?.createdAt ?? null
+}
+
 export async function createFamily(params: {
   userId: string
   familyName: string

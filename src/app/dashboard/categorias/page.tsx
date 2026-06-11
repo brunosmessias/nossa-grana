@@ -2,7 +2,8 @@ import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { auth } from "@/server/auth/auth"
-import { getUserFamilyId } from "@/server/services/family-service"
+import { getFamilyCreatedAt, getUserFamilyId } from "@/server/services/family-service"
+import { formatMonthKey } from "@/lib/month-key"
 import { CategoriesPageClient } from "./ui"
 
 export default async function CategoriasPage() {
@@ -10,5 +11,7 @@ export default async function CategoriasPage() {
   if (!session?.user) redirect("/sign-in")
   const familyId = await getUserFamilyId(session.user.id)
   if (!familyId) redirect("/onboarding")
-  return <CategoriesPageClient familyId={familyId} />
+  const familyCreatedAt = await getFamilyCreatedAt(familyId)
+  const familyCreatedMonth = familyCreatedAt ? formatMonthKey(familyCreatedAt) : null
+  return <CategoriesPageClient familyId={familyId} familyCreatedMonth={familyCreatedMonth} />
 }
