@@ -16,6 +16,8 @@ import {
   Plus,
 } from "lucide-react";
 
+import { useMonthSelector } from "@/hooks/use-month-selector";
+import { formatMonthKey, previousMonthKey } from "@/lib/month-key";
 import { api } from "@/trpc/react";
 import { Separator } from "@/components/ui/separator";
 import { useInvalidateQueries } from "@/hooks/use-invalidate-queries";
@@ -44,10 +46,6 @@ function brl(cents: number) {
   }).format(cents / 100);
 }
 
-function getMonthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function formatMonthLabel(monthKey: string) {
   const [year, month] = monthKey.split("-").map(Number);
   return new Intl.DateTimeFormat("pt-BR", {
@@ -58,14 +56,23 @@ function formatMonthLabel(monthKey: string) {
 
 export function DashboardClient({
   defaultFamilyId,
+  familyCreatedMonth,
 }: {
   defaultFamilyId: string | null;
+  familyCreatedMonth?: string | null;
 }) {
   const [familyId] = useState(defaultFamilyId ?? "");
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(() =>
-    getMonthKey(new Date()),
-  );
+
+  const {
+    selectedMonth,
+    goToNext,
+    goToPrev,
+    canGoNext,
+    canGoPrev,
+  } = useMonthSelector({
+    minMonth: familyCreatedMonth ?? null,
+    currentMonthKey: formatMonthKey(new Date()),
+  });
 
   const [txDialogOpen, setTxDialogOpen] = useState(false);
   const [txDialogType, setTxDialogType] = useState<"INCOME" | "EXPENSE">(
@@ -122,14 +129,13 @@ export function DashboardClient({
   );
 
   const previousRange = useMemo(() => {
-    const [yearStr, monthStr] = selectedMonth.split("-").map(Number);
-    const prev = new Date(Date.UTC(yearStr, monthStr - 2, 1));
-    const prevYear = prev.getUTCFullYear();
-    const prevMonth = prev.getUTCMonth() + 1;
-    const first = new Date(Date.UTC(prevYear, prevMonth - 1, 1, 0, 0, 0, 0));
-    const lastDay = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
+    const [yearStr, monthStr] = previousMonthKey(selectedMonth)
+      .split("-")
+      .map(Number);
+    const first = new Date(Date.UTC(yearStr, monthStr - 1, 1, 0, 0, 0, 0));
+    const lastDay = new Date(Date.UTC(yearStr, monthStr, 0)).getUTCDate();
     const last = new Date(
-      Date.UTC(prevYear, prevMonth - 1, lastDay, 23, 59, 59, 999),
+      Date.UTC(yearStr, monthStr - 1, lastDay, 23, 59, 59, 999),
     );
     return { dateFrom: first.toISOString(), dateTo: last.toISOString() };
   }, [selectedMonth]);
@@ -161,27 +167,6 @@ export function DashboardClient({
   const hasAnyTransaction = (anyTransactionData?.total ?? 0) > 0;
   const totalBalanceCents = accountsData?.totalBalanceCents ?? 0;
 
-  useEffect(() => {
-    const months = new Set<string>();
-    const now = new Date();
-    months.add(getMonthKey(now));
-    for (const tx of monthTransactions) {
-      months.add(getMonthKey(new Date(tx.transactionAt)));
-    }
-    if (previousMonthTransactions.length > 0) {
-      for (const tx of previousMonthTransactions) {
-        months.add(getMonthKey(new Date(tx.transactionAt)));
-      }
-    }
-    if (months.size === 0) return;
-    const next = Array.from(months).sort().reverse();
-    setAvailableMonths((prev) =>
-      prev.length === next.length && prev.every((m, i) => m === next[i])
-        ? prev
-        : next,
-    );
-  }, [monthTransactions, previousMonthTransactions]);
-
   const defaultAccountId = useMemo(() => {
     const checking = accounts.find(
       (a) => a.type === "CHECKING" && !a.archived,
@@ -192,8 +177,6 @@ export function DashboardClient({
       ""
     );
   }, [accounts]);
-
-  const currentIdx = availableMonths.indexOf(selectedMonth);
 
   const monthIncome = useMemo(
     () =>
@@ -359,19 +342,19 @@ export function DashboardClient({
           <Button
             variant="ghost"
             size="icon-sm"
-            disabled={currentIdx >= availableMonths.length - 1}
-            onClick={() => setSelectedMonth(availableMonths[currentIdx + 1])}
+            disabled={!canGoNext}
+            onClick={goToNext}
           >
             <ChevronLeft className="size-5" />
           </Button>
           <span className="min-w-36 text-center text-sm font-semibold capitalize sm:min-w-44">
-            {availableMonths.length > 0 ? formatMonthLabel(selectedMonth) : "—"}
+            {formatMonthLabel(selectedMonth)}
           </span>
           <Button
             variant="ghost"
             size="icon-sm"
-            disabled={currentIdx <= 0}
-            onClick={() => setSelectedMonth(availableMonths[currentIdx - 1])}
+            disabled={!canGoPrev}
+            onClick={goToPrev}
           >
             <ChevronRight className="size-5" />
           </Button>
