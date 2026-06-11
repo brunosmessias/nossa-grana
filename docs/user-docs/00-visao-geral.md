@@ -15,8 +15,8 @@ O sistema funciona assim: um membro cria a família, convida os outros por email
 1. **Cadastro** — Você entra com Google ou email e cria sua família
 2. **Convite** — Convida os membros da família por email
 3. **Organização** — Cria contas (corrente, poupança, etc.) e categorias (alimentação, transporte, etc.)
-4. **Registro** — Cada membro registra transações (gastos e receitas)
-5. **Acompanhamento** — Veja dashboards, gráficos e comparativos mensais
+4. **Registro** — Cada membro registra transações (gastos e receitas), podendo marcar como pago ou pendente
+5. **Acompanhamento** — Navegue por mês no dashboard, veja resumos com barras de progresso e comparativos
 
 ## Quem Usa
 
@@ -45,6 +45,7 @@ O sistema funciona assim: um membro cria a família, convida os outros por email
 | Convite por email | Novos membros só entram na família através de convite enviado por email |
 | Convites expiram | Convites não aceitos em 7 dias expiram automaticamente |
 | Proprietário não pode sair | O criador da família não pode ser removido. Para sair, é necessário transferir a propriedade |
+| Navegação por mês | O dashboard mostra dados de um mês específico. Você pode navegar entre meses com as setas |
 
 ## Integrações
 
@@ -72,10 +73,11 @@ flowchart TB
         D --> H[👨‍👩‍👧‍👦 Família]
     end
 
-    subgraph Dados["💾 Dados Compartilhados"]
-        E --> I[Saldo, metas<br/>transferências]
-        F --> J[Orçamento, gráficos<br/>tendências]
-        G --> K[Tabela, filtros<br/>agrupamento]
-        H --> L[Membros, convites<br/>permissões]
+    subgraph Funcionalidades["⚡ Funcionalidades"]
+        D --> I[📅 Navegação mensal]
+        G --> J[✅ Pago / Pendente]
+        G --> K[✏️ Edição inline]
+        G --> L[📊 Ordenação por coluna]
+        G --> M[📦 Importação em lote]
     end
 ```
