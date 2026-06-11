@@ -329,6 +329,7 @@ export function BatchImportDialog({
       await batchImportMutation.mutateAsync({
         familyId,
         accountId,
+        targetMonth: selectedMonth,
         transactions: validRows.map((r) => ({
           categoryId: r.categoryId,
           type: r.type,

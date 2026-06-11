@@ -15,6 +15,7 @@ export type CreateTransactionInput = z.infer<typeof createTransactionSchema>
 export const batchImportTransactionSchema = z.object({
   familyId: z.string().uuid(),
   accountId: z.string().uuid(),
+  targetMonth: z.string().regex(/^\d{4}-\d{2}$/),
   transactions: z
     .array(
       z.object({

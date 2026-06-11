@@ -248,9 +248,13 @@ export async function batchImportTransactions(
 ) {
   await assertFamilyMember(input.familyId, userId)
 
-  const now = new Date()
-  const targetYear = now.getFullYear()
-  const targetMonth = now.getMonth()
+  const [yearStr, monthStr] = input.targetMonth.split("-")
+  const targetYear = Number(yearStr)
+  const targetMonth = Number(monthStr) - 1
+
+  if (!Number.isFinite(targetYear) || !Number.isFinite(targetMonth)) {
+    throw new Error("Mês alvo inválido")
+  }
 
   const values = input.transactions.map((tx) => ({
     familyId: input.familyId,
@@ -271,7 +275,7 @@ export async function batchImportTransactions(
     entityId: "batch",
     reason: "batch-import",
     before: null,
-    after: { count: values.length, accountId: input.accountId },
+    after: { count: values.length, accountId: input.accountId, targetMonth: input.targetMonth },
     source: "api",
     requestId: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
