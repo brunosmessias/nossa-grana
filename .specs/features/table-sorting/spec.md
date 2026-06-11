@@ -8,11 +8,11 @@ We need clickable column headers that send `orderBy` + `orderDir` to the server,
 
 ## Goals
 
-- [ ] Click any sortable column header to sort ascending, click again to sort descending, click a third time on another column to switch
-- [ ] Sort is server-side: the tRPC procedure receives `orderBy` and `orderDir` and returns the sorted, paginated result
-- [ ] The active column shows an arrow indicator (up or down)
-- [ ] Sort works in dashboard tables (Despesas, Receitas) and on the full transactions page
-- [ ] Sort defaults to a sensible value (transactionAt desc) on first load
+- [x] Click any sortable column header to sort ascending, click again to sort descending, click a third time on another column to switch
+- [x] Sort is server-side: the tRPC procedure receives `orderBy` and `orderDir` and returns the sorted, paginated result
+- [x] The active column shows an arrow indicator (up or down)
+- [x] Sort works in dashboard tables (Despesas, Receitas) and on the full transactions page
+- [x] Sort defaults to a sensible value (transactionAt desc) on first load
 
 ## Out of Scope
 
@@ -90,19 +90,19 @@ We need clickable column headers that send `orderBy` + `orderDir` to the server,
 
 | Requirement ID | Story                            | Phase   | Status  |
 | -------------- | -------------------------------- | ------- | ------- |
-| SORT-01        | P1: dashboard header clickable   | Design  | Pending |
-| SORT-02        | P1: sort indicator               | Design  | Pending |
-| SORT-03        | P2: full page header clickable   | Design  | Pending |
-| SORT-04        | P2: sort resets page             | Design  | Pending |
-| SORT-05        | P3: procedure accepts orderBy    | Design  | Pending |
-| SORT-06        | P3: procedure accepts orderDir   | Design  | Pending |
-| SORT-07        | All: cancel in-flight on rapid click | Design | Pending |
+| SORT-01        | P1: dashboard header clickable   | Done    | Done    |
+| SORT-02        | P1: sort indicator               | Done    | Done    |
+| SORT-03        | P2: full page header clickable   | Done    | Done    |
+| SORT-04        | P2: sort resets page             | Done    | Done    |
+| SORT-05        | P3: procedure accepts orderBy    | Done    | Done    |
+| SORT-06        | P3: procedure accepts orderDir   | Done    | Done    |
+| SORT-07        | All: cancel in-flight on rapid click | Done | Done    |
 
-**Coverage:** 7 total, 0 mapped to tasks, 7 unmapped ⚠️
+**Coverage:** 7 total, 7 mapped to done ✅
 
 ## Success Criteria
 
-- [ ] User can sort any dashboard table by data, descrição, or valor with one click
-- [ ] Sort is consistent with pagination (sorted page is a slice of the sorted full list)
-- [ ] Default sort is transactionAt desc on first load
-- [ ] No regression in the empty / single-row cases
+- [x] User can sort any dashboard table by data, descrição, or valor with one click
+- [x] Sort is consistent with pagination (sorted page is a slice of the sorted full list)
+- [x] Default sort is transactionAt desc on first load
+- [x] No regression in the empty / single-row cases

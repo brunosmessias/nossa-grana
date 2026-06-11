@@ -28,11 +28,19 @@
 - [x] Move to Design phase per feature (4 design.md files)
 - [x] Move to Tasks phase per feature (4 tasks.md files)
 - [ ] Implement in the order: MONTH → SORT → TXPAID → TXEDIT (unblocks most users first)
+- [x] SORT: implement + verify (T1–T5 done, bun check pass)
 
 ## Pre-existing concerns flagged during design
 
 - `transaction-dialog.tsx` uses raw `useState` for form state, which violates AGENTS.md ("ALL forms MUST use useForm from TanStack Form"). The TXEDIT and TXPAID designs call this out as a known issue and avoid migrating it in this PR. Track as a separate refactor.
 - Drizzle migration is required for the `paid` column. The `bun db:generate` + `bun db:migrate` flow is the project standard.
+
+## Sort feature implementation (2026-06-11)
+
+- Implemented SORT-01..07 per `.specs/features/table-sorting/`. New component `src/components/ui/sortable-header.tsx`; dashboard now uses `transactions.list` with `dateFrom`/`dateTo` derived from `selectedMonth`; `/dashboard/transacoes` and `MonthlyView` consume `SortableHeader`. `listAll` procedure kept (still used by `categorias`/`contas`).
+- Sort state (`sortBy` / `sortDir`) lives in `DashboardClient` so it persists across month changes per spec. `TransactionsPageClient` resets `page` to 1 on sort change.
+- `TransactionSortKey` and `SortDirection` types exported from `src/shared/schemas/transaction.ts` (DRY with the Zod enum).
+- Added a 3rd lightweight `transactions.list({ page: 1, pageSize: 1 })` call in the dashboard to know if the family has any transaction at all (replaces the old `transactions.length > 0` check that came from `listAll`).
 
 ## Deferred ideas
 

@@ -1,7 +1,7 @@
 # Table Sorting Tasks
 
 **Design:** `.specs/features/table-sorting/design.md`
-**Status:** Draft
+**Status:** Done
 
 ---
 
