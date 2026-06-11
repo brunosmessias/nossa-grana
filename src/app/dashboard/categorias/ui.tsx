@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/components/ui/sonner"
 import { ChevronLeft, ChevronRight, Plus, Tag } from "lucide-react"
 import { api } from "@/trpc/react"
 import { useInvalidateQueries } from "@/hooks/use-invalidate-queries"
+import { useMonthSelector } from "@/hooks/use-month-selector"
+import { addMonths, formatMonthKey, previousMonthKey } from "@/lib/month-key"
 import { CategoryCard, CategoryFormDialog, ExpenseDonutChart, CategoryLineChart, TrendRanking } from "./components"
 
 type Category = {
@@ -23,26 +25,22 @@ function brl(cents: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(cents / 100)
 }
 
-function getMonthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
-}
-
 function formatMonthLabel(monthKey: string) {
   const [year, month] = monthKey.split("-").map(Number)
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1))
 }
 
-function getAvailableMonths(transactions: Transaction[]): string[] {
-  const months = new Set<string>()
-  const now = new Date()
-  months.add(getMonthKey(now))
-  for (const tx of transactions) months.add(getMonthKey(new Date(tx.transactionAt)))
-  return Array.from(months).sort().reverse()
-}
-
-export function CategoriesPageClient({ familyId }: { familyId: string }) {
-  const [availableMonths, setAvailableMonths] = useState<string[]>([])
-  const [selectedMonth, setSelectedMonth] = useState(() => getMonthKey(new Date()))
+export function CategoriesPageClient({ familyId, familyCreatedMonth }: { familyId: string; familyCreatedMonth?: string | null }) {
+  const {
+    selectedMonth,
+    goToNext,
+    goToPrev,
+    canGoNext,
+    canGoPrev,
+  } = useMonthSelector({
+    minMonth: familyCreatedMonth ?? null,
+    currentMonthKey: formatMonthKey(new Date()),
+  })
   const [createOpen, setCreateOpen] = useState(false)
   const [editCategory, setEditCategory] = useState<Category | null>(null)
   const [selectedChartCategory, setSelectedChartCategory] = useState<string | null>(null)
@@ -62,20 +60,16 @@ export function CategoriesPageClient({ familyId }: { familyId: string }) {
   const transactions = (transactionsData ?? []) as unknown as Transaction[]
   const categories = (categoriesData ?? []) as unknown as Category[]
 
-  useEffect(() => {
-    if (transactions.length > 0) setAvailableMonths(getAvailableMonths(transactions))
-  }, [transactions])
-
-  const currentIdx = availableMonths.indexOf(selectedMonth)
-  const prevMonth = currentIdx < availableMonths.length - 1 ? availableMonths[currentIdx + 1] : null
+  const minMonth = familyCreatedMonth ?? null
+  const prevMonth = minMonth !== null && selectedMonth === minMonth ? null : previousMonthKey(selectedMonth)
 
   const monthTx = useMemo(
-    () => transactions.filter((t) => getMonthKey(new Date(t.transactionAt)) === selectedMonth),
+    () => transactions.filter((t) => formatMonthKey(new Date(t.transactionAt)) === selectedMonth),
     [transactions, selectedMonth],
   )
 
   const prevMonthTx = useMemo(
-    () => prevMonth ? transactions.filter((t) => getMonthKey(new Date(t.transactionAt)) === prevMonth) : [],
+    () => prevMonth ? transactions.filter((t) => formatMonthKey(new Date(t.transactionAt)) === prevMonth) : [],
     [transactions, prevMonth],
   )
 
@@ -116,14 +110,14 @@ export function CategoriesPageClient({ familyId }: { familyId: string }) {
 
   const lineChartData = useMemo(() => {
     if (!selectedChartCategory) return []
-    const months = availableMonths.slice(0, 6).reverse()
+    const months = Array.from({ length: 6 }, (_, k) => addMonths(selectedMonth, -k)).reverse()
     return months.map((mk) => {
       const [y, m] = mk.split("-").map(Number)
-      const total = transactions.filter((t) => t.categoryId === selectedChartCategory && getMonthKey(new Date(t.transactionAt)) === mk).reduce((s, t) => s + t.amountCents, 0)
+      const total = transactions.filter((t) => t.categoryId === selectedChartCategory && formatMonthKey(new Date(t.transactionAt)) === mk).reduce((s, t) => s + t.amountCents, 0)
       const label = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(new Date(y, m - 1, 1))
       return { month: label, total }
     })
-  }, [selectedChartCategory, transactions, availableMonths])
+  }, [selectedChartCategory, transactions, selectedMonth])
 
   const selectedCat = selectedChartCategory ? categories.find((c) => c.id === selectedChartCategory) : null
 
@@ -135,9 +129,9 @@ export function CategoriesPageClient({ familyId }: { familyId: string }) {
         <h2 className="text-2xl font-bold text-primary sm:text-3xl lg:text-4xl">Categorias</h2>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon-sm" disabled={currentIdx >= availableMonths.length - 1} onClick={() => setSelectedMonth(availableMonths[currentIdx + 1])}><ChevronLeft className="size-5" /></Button>
-            <span className="min-w-36 text-center text-sm font-semibold capitalize sm:min-w-44">{availableMonths.length > 0 ? formatMonthLabel(selectedMonth) : "—"}</span>
-            <Button variant="ghost" size="icon-sm" disabled={currentIdx <= 0} onClick={() => setSelectedMonth(availableMonths[currentIdx - 1])}><ChevronRight className="size-5" /></Button>
+            <Button variant="ghost" size="icon-sm" disabled={!canGoNext} onClick={goToNext}><ChevronLeft className="size-5" /></Button>
+            <span className="min-w-36 text-center text-sm font-semibold capitalize sm:min-w-44">{formatMonthLabel(selectedMonth)}</span>
+            <Button variant="ghost" size="icon-sm" disabled={!canGoPrev} onClick={goToPrev}><ChevronRight className="size-5" /></Button>
           </div>
           <Button size="sm" onClick={() => setCreateOpen(true)}><Plus className="mr-1 size-3" /> Nova categoria</Button>
         </div>
