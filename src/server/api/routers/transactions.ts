@@ -20,31 +20,31 @@ export const transactionsRouter = createTRPCRouter({
   list: protectedProcedure
     .input(listTransactionsSchema)
     .query(async ({ ctx, input }) => {
-      return listTransactions(ctx.user.id, input)
+      return listTransactions(ctx.user.id, input, ctx.family)
     }),
 
   listAll: protectedProcedure
     .input(familyIdSchema)
     .query(async ({ ctx, input }) => {
-      return listAllTransactions(ctx.user.id, input.familyId)
+      return listAllTransactions(ctx.user.id, input.familyId, ctx.family)
     }),
 
   create: protectedProcedure.input(createTransactionSchema).mutation(async ({ ctx, input }) => {
-    return createTransaction(ctx.user.id, input)
+    return createTransaction(ctx.user.id, input, ctx.family)
   }),
 
   update: protectedProcedure.input(updateTransactionSchema).mutation(async ({ ctx, input }) => {
     const { familyId, transactionId, ...rest } = input
-    return updateTransaction(ctx.user.id, familyId, transactionId, rest)
+    return updateTransaction(ctx.user.id, familyId, transactionId, rest, ctx.family)
   }),
 
   delete: protectedProcedure.input(deleteTransactionSchema).mutation(async ({ ctx, input }) => {
-    return deleteTransaction(ctx.user.id, input.familyId, input.transactionId)
+    return deleteTransaction(ctx.user.id, input.familyId, input.transactionId, ctx.family)
   }),
 
   batchImport: protectedProcedure
     .input(batchImportTransactionSchema)
     .mutation(async ({ ctx, input }) => {
-      return batchImportTransactions(ctx.user.id, input)
+      return batchImportTransactions(ctx.user.id, input, ctx.family)
     }),
 })

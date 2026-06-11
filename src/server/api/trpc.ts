@@ -3,14 +3,29 @@ import superjson from "superjson"
 import { ZodError } from "zod"
 
 import { auth } from "@/server/auth/auth"
+import { getUserFamilyId } from "@/server/services/family-service"
+
+type FamilyContext = {
+  familyId: string
+  role: "OWNER" | "ADMIN" | "MEMBER"
+}
 
 export async function createTRPCContext(opts: { headers: Headers }) {
   const session = await auth.api.getSession({
     headers: opts.headers,
   })
 
+  let family: FamilyContext | null = null
+  if (session?.user) {
+    const membership = await getUserFamilyId(session.user.id)
+    if (membership) {
+      family = { familyId: membership.familyId, role: membership.role }
+    }
+  }
+
   return {
     session,
+    family,
   }
 }
 
@@ -35,10 +50,15 @@ const isAuthed = t.middleware(({ ctx, next }) => {
     throw new TRPCError({ code: "UNAUTHORIZED" })
   }
 
+  if (!ctx.family) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Usuário sem família" })
+  }
+
   return next({
     ctx: {
       ...ctx,
       user: ctx.session.user,
+      family: ctx.family,
     },
   })
 })

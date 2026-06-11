@@ -8,7 +8,7 @@ import { AccountsPageClient } from "./ui"
 export default async function ContasPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) redirect("/sign-in")
-  const familyId = await getUserFamilyId(session.user.id)
-  if (!familyId) redirect("/onboarding")
-  return <AccountsPageClient familyId={familyId} />
+  const membership = await getUserFamilyId(session.user.id)
+  if (!membership) redirect("/onboarding")
+  return <AccountsPageClient familyId={membership.familyId} />
 }

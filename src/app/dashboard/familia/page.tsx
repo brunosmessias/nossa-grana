@@ -14,11 +14,11 @@ export default async function FamiliaPage() {
     redirect("/sign-in")
   }
 
-  const familyId = await getUserFamilyId(session.user.id)
+  const membership = await getUserFamilyId(session.user.id)
 
-  if (!familyId) {
+  if (!membership) {
     redirect("/onboarding")
   }
 
-  return <FamilyPageClient familyId={familyId} />
+  return <FamilyPageClient familyId={membership.familyId} />
 }

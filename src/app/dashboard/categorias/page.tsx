@@ -10,11 +10,14 @@ import { CategoriesPageClient } from "./ui"
 export default async function CategoriasPage() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) redirect("/sign-in")
-  const familyId = await getUserFamilyId(session.user.id)
-  if (!familyId) redirect("/onboarding")
-  const familyCreatedAt = await getFamilyCreatedAt(familyId)
+  const membership = await getUserFamilyId(session.user.id)
+  if (!membership) redirect("/onboarding")
+  const { familyId } = membership
+  const [familyCreatedAt, oldestTxAt] = await Promise.all([
+    getFamilyCreatedAt(familyId),
+    getOldestTransactionAt(session.user.id, familyId, membership),
+  ])
   const familyCreatedMonth = familyCreatedAt ? formatMonthKey(familyCreatedAt) : null
-  const oldestTxAt = await getOldestTransactionAt(session.user.id, familyId)
   const oldestTxMonth = oldestTxAt ? formatMonthKey(oldestTxAt) : null
   const navMinMonth =
     familyCreatedMonth && oldestTxMonth

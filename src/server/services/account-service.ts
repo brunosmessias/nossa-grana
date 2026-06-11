@@ -5,10 +5,14 @@ import { writeAuditLog } from "@/server/audit/write-audit"
 import { db } from "@/server/db/client"
 import { accounts, categories, transactions } from "@/server/db/schema"
 import type { UpsertAccountInput } from "@/shared/schemas/account"
-import { assertFamilyMember } from "./auth-service"
+import { assertFamilyMember, type FamilyMembership } from "./auth-service"
 
-export async function listAccounts(userId: string, familyId: string) {
-  await assertFamilyMember(familyId, userId)
+export async function listAccounts(
+  userId: string,
+  familyId: string,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(familyId, userId, membership)
 
   const accountRows = await db
     .select()
@@ -39,8 +43,12 @@ export async function listAccounts(userId: string, familyId: string) {
   }))
 }
 
-export async function getAccountsSummary(userId: string, familyId: string) {
-  const accountWithBalance = await listAccounts(userId, familyId)
+export async function getAccountsSummary(
+  userId: string,
+  familyId: string,
+  membership?: FamilyMembership,
+) {
+  const accountWithBalance = await listAccounts(userId, familyId, membership)
 
   const totalBalanceCents = accountWithBalance
     .filter((account) => !account.archived)
@@ -49,8 +57,12 @@ export async function getAccountsSummary(userId: string, familyId: string) {
   return { accounts: accountWithBalance, totalBalanceCents }
 }
 
-export async function upsertAccount(userId: string, input: UpsertAccountInput) {
-  await assertFamilyMember(input.familyId, userId)
+export async function upsertAccount(
+  userId: string,
+  input: UpsertAccountInput,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(input.familyId, userId, membership)
 
   if (input.id) {
     const current = await db.query.accounts.findFirst({
@@ -123,8 +135,13 @@ export async function upsertAccount(userId: string, input: UpsertAccountInput) {
   return created
 }
 
-export async function archiveAccount(userId: string, familyId: string, accountId: string) {
-  await assertFamilyMember(familyId, userId)
+export async function archiveAccount(
+  userId: string,
+  familyId: string,
+  accountId: string,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(familyId, userId, membership)
 
   const [updated] = await db
     .update(accounts)
@@ -159,8 +176,9 @@ export async function transferBetweenAccounts(params: {
   toAccountId: string
   amountCents: number
   description: string
+  membership?: FamilyMembership
 }) {
-  await assertFamilyMember(params.familyId, params.userId)
+  await assertFamilyMember(params.familyId, params.userId, params.membership)
 
   const fromAccount = await db.query.accounts.findFirst({
     where: and(eq(accounts.id, params.fromAccountId), eq(accounts.familyId, params.familyId)),

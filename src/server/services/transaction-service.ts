@@ -5,7 +5,7 @@ import { writeAuditLog } from "@/server/audit/write-audit"
 import { db } from "@/server/db/client"
 import { transactions } from "@/server/db/schema"
 import type { CreateTransactionInput, BatchImportTransactionInput } from "@/shared/schemas/transaction"
-import { assertFamilyMember } from "./auth-service"
+import { assertFamilyMember, type FamilyMembership } from "./auth-service"
 
 export type ListTransactionsInput = {
   familyId: string
@@ -32,8 +32,9 @@ export type PaginatedResult<T> = {
 export async function listTransactions(
   userId: string,
   input: ListTransactionsInput,
+  membership?: FamilyMembership,
 ): Promise<PaginatedResult<typeof transactions.$inferSelect>> {
-  await assertFamilyMember(input.familyId, userId)
+  await assertFamilyMember(input.familyId, userId, membership)
 
   const page = input.page ?? 1
   const pageSize = input.pageSize ?? 20
@@ -100,8 +101,12 @@ export async function listTransactions(
   }
 }
 
-export async function listAllTransactions(userId: string, familyId: string) {
-  await assertFamilyMember(familyId, userId)
+export async function listAllTransactions(
+  userId: string,
+  familyId: string,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(familyId, userId, membership)
 
   return db
     .select()
@@ -113,8 +118,9 @@ export async function listAllTransactions(userId: string, familyId: string) {
 export async function getOldestTransactionAt(
   userId: string,
   familyId: string,
+  membership?: FamilyMembership,
 ): Promise<Date | null> {
-  await assertFamilyMember(familyId, userId)
+  await assertFamilyMember(familyId, userId, membership)
 
   const [row] = await db
     .select({ transactionAt: transactions.transactionAt })
@@ -129,8 +135,12 @@ export async function getOldestTransactionAt(
     : new Date(row.transactionAt)
 }
 
-export async function createTransaction(userId: string, input: CreateTransactionInput) {
-  await assertFamilyMember(input.familyId, userId)
+export async function createTransaction(
+  userId: string,
+  input: CreateTransactionInput,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(input.familyId, userId, membership)
 
   const [created] = await db
     .insert(transactions)
@@ -172,8 +182,9 @@ export async function updateTransaction(
     amountCents?: number
     transactionAt?: string
   },
+  membership?: FamilyMembership,
 ) {
-  await assertFamilyMember(familyId, userId)
+  await assertFamilyMember(familyId, userId, membership)
 
   const current = await db.query.transactions.findFirst({
     where: and(eq(transactions.id, transactionId), eq(transactions.familyId, familyId)),
@@ -211,8 +222,13 @@ export async function updateTransaction(
   return { id: transactionId }
 }
 
-export async function deleteTransaction(userId: string, familyId: string, transactionId: string) {
-  await assertFamilyMember(familyId, userId)
+export async function deleteTransaction(
+  userId: string,
+  familyId: string,
+  transactionId: string,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(familyId, userId, membership)
 
   const current = await db.query.transactions.findFirst({
     where: and(eq(transactions.id, transactionId), eq(transactions.familyId, familyId)),
@@ -245,8 +261,9 @@ export async function deleteTransaction(userId: string, familyId: string, transa
 export async function batchImportTransactions(
   userId: string,
   input: BatchImportTransactionInput,
+  membership?: FamilyMembership,
 ) {
-  await assertFamilyMember(input.familyId, userId)
+  await assertFamilyMember(input.familyId, userId, membership)
 
   const [yearStr, monthStr] = input.targetMonth.split("-")
   const targetYear = Number(yearStr)

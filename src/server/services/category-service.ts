@@ -5,10 +5,14 @@ import { writeAuditLog } from "@/server/audit/write-audit"
 import { db } from "@/server/db/client"
 import { categories, transactions } from "@/server/db/schema"
 import type { CreateCategoryInput } from "@/shared/schemas/category"
-import { assertFamilyMember } from "./auth-service"
+import { assertFamilyMember, type FamilyMembership } from "./auth-service"
 
-export async function listCategories(userId: string, familyId: string) {
-  await assertFamilyMember(familyId, userId)
+export async function listCategories(
+  userId: string,
+  familyId: string,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(familyId, userId, membership)
 
   return db
     .select()
@@ -16,8 +20,12 @@ export async function listCategories(userId: string, familyId: string) {
     .where(eq(categories.familyId, familyId))
 }
 
-export async function createCategory(userId: string, input: CreateCategoryInput) {
-  await assertFamilyMember(input.familyId, userId)
+export async function createCategory(
+  userId: string,
+  input: CreateCategoryInput,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(input.familyId, userId, membership)
 
   const [created] = await db
     .insert(categories)
@@ -27,8 +35,13 @@ export async function createCategory(userId: string, input: CreateCategoryInput)
   return created
 }
 
-export async function deleteCategory(userId: string, familyId: string, categoryId: string) {
-  await assertFamilyMember(familyId, userId)
+export async function deleteCategory(
+  userId: string,
+  familyId: string,
+  categoryId: string,
+  membership?: FamilyMembership,
+) {
+  await assertFamilyMember(familyId, userId, membership)
 
   const linked = await db.query.transactions.findFirst({
     where: and(eq(transactions.familyId, familyId), eq(transactions.categoryId, categoryId)),
@@ -60,8 +73,9 @@ export async function updateCategory(
     color?: string
     monthlyBudgetCents?: number | null
   },
+  membership?: FamilyMembership,
 ) {
-  await assertFamilyMember(familyId, userId)
+  await assertFamilyMember(familyId, userId, membership)
 
   const current = await db.query.categories.findFirst({
     where: and(eq(categories.id, categoryId), eq(categories.familyId, familyId)),

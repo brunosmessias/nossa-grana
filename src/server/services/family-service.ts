@@ -6,11 +6,14 @@ import { families, familyInvites, familyMembers, user } from "@/server/db/schema
 import { sendEmail } from "@/server/email/sender"
 import { familyInviteTemplate } from "@/server/email/templates"
 
-export async function getUserFamilyId(userId: string): Promise<string | null> {
+export async function getUserFamilyId(
+  userId: string,
+): Promise<{ familyId: string; role: "OWNER" | "ADMIN" | "MEMBER" } | null> {
   const membership = await db.query.familyMembers.findFirst({
     where: eq(familyMembers.userId, userId),
   })
-  return membership?.familyId ?? null
+  if (!membership) return null
+  return { familyId: membership.familyId, role: membership.role }
 }
 
 export async function getFamilyCreatedAt(

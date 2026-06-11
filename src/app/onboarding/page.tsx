@@ -15,8 +15,8 @@ export default async function OnboardingPage() {
     redirect("/sign-in")
   }
 
-  const existingFamilyId = await getUserFamilyId(session.user.id)
-  if (existingFamilyId) {
+  const existingMembership = await getUserFamilyId(session.user.id)
+  if (existingMembership) {
     redirect("/dashboard")
   }
 

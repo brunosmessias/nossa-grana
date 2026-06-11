@@ -14,9 +14,9 @@ export default async function DashboardRootLayout({ children }: { children: Reac
     redirect("/sign-in")
   }
 
-  const familyId = await getUserFamilyId(session.user.id)
+  const membership = await getUserFamilyId(session.user.id)
 
-  if (!familyId) {
+  if (!membership) {
     redirect("/onboarding")
   }
 

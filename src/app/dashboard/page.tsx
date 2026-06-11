@@ -16,12 +16,25 @@ export default async function DashboardPage() {
     redirect("/sign-in")
   }
 
-  const familyId = await getUserFamilyId(session.user.id)
-  const familyCreatedAt = familyId ? await getFamilyCreatedAt(familyId) : null
+  const membership = await getUserFamilyId(session.user.id)
+
+  if (!membership) {
+    return (
+      <DashboardClient
+        defaultFamilyId={null}
+        familyCreatedMonth={null}
+        navMinMonth={null}
+      />
+    )
+  }
+
+  const { familyId } = membership
+  const [familyCreatedAt, oldestTxAt] = await Promise.all([
+    getFamilyCreatedAt(familyId),
+    getOldestTransactionAt(session.user.id, familyId, membership),
+  ])
+
   const familyCreatedMonth = familyCreatedAt ? formatMonthKey(familyCreatedAt) : null
-  const oldestTxAt = familyId
-    ? await getOldestTransactionAt(session.user.id, familyId)
-    : null
   const oldestTxMonth = oldestTxAt ? formatMonthKey(oldestTxAt) : null
   const navMinMonth =
     familyCreatedMonth && oldestTxMonth

@@ -153,11 +153,6 @@ export function DashboardClient({
     { enabled },
   );
 
-  const { data: anyTransactionData } = api.transactions.list.useQuery(
-    { familyId, page: 1, pageSize: 1 },
-    { enabled },
-  );
-
   const invalidate = useInvalidateQueries();
 
   const accounts = accountsData?.accounts ?? [];
@@ -166,7 +161,8 @@ export function DashboardClient({
     []) as unknown as Transaction[];
   const previousMonthTransactions = (previousMonthTransactionsData?.items ??
     []) as unknown as Transaction[];
-  const hasAnyTransaction = (anyTransactionData?.total ?? 0) > 0;
+  const hasAnyTransaction =
+    monthTransactions.length > 0 || previousMonthTransactions.length > 0;
   const totalBalanceCents = accountsData?.totalBalanceCents ?? 0;
 
   const defaultAccountId = useMemo(() => {
