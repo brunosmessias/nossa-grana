@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { IconBadge } from "@/components/ui/icon-badge";
 import {
   Table,
@@ -33,6 +34,7 @@ type Transaction = {
   transactionAt: string;
   categoryId: string | null;
   accountId: string;
+  paid: boolean;
 };
 
 function brl(cents: number) {
@@ -53,6 +55,9 @@ function TransactionSection({
   sortDir,
   onSort,
   onEdit,
+  onTogglePaid,
+  pendingRowId,
+  onOptimisticPaid,
 }: {
   title: string;
   transactions: Transaction[];
@@ -64,6 +69,9 @@ function TransactionSection({
   sortDir: SortDirection;
   onSort: (key: TransactionSortKey) => void;
   onEdit?: (tx: Transaction) => void;
+  onTogglePaid?: (tx: Transaction, next: boolean) => Promise<void> | void;
+  pendingRowId?: string | null;
+  onOptimisticPaid?: (txId: string, next: boolean) => void;
 }) {
   return (
     <section className="w-full rounded-md border-2 border-border/60 p-4 bg-white dark:bg-muted/10">
@@ -84,6 +92,11 @@ function TransactionSection({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
+            {onTogglePaid && (
+              <TableHead className="w-10 text-xs font-bold uppercase text-muted-foreground">
+                Pago
+              </TableHead>
+            )}
             <SortableHeader
               label="Data"
               columnKey="transactionAt"
@@ -116,7 +129,7 @@ function TransactionSection({
           {transactions.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={onEdit ? 5 : 4}
+                colSpan={onTogglePaid ? (onEdit ? 6 : 5) : onEdit ? 5 : 4}
                 className="h-16 text-center text-sm text-muted-foreground"
               >
                 Nenhuma transação encontrada
@@ -128,15 +141,34 @@ function TransactionSection({
             const category = tx.categoryId
               ? categoryMap.get(tx.categoryId)
               : null;
+            const isPending = pendingRowId === tx.id;
             return (
-              <TableRow key={tx.id} className="group">
+              <TableRow
+                key={tx.id}
+                className={`group ${isPending ? "pointer-events-none opacity-50" : ""}`}
+              >
+                {onTogglePaid && (
+                  <TableCell>
+                    <Checkbox
+                      checked={tx.paid}
+                      disabled={isPending}
+                      onClick={(e) => e.stopPropagation()}
+                      onCheckedChange={(value) => {
+                        const next = value === true;
+                        onOptimisticPaid?.(tx.id, next);
+                        onTogglePaid?.(tx, next);
+                      }}
+                      aria-label={tx.paid ? "Marcar como pendente" : "Marcar como pago"}
+                    />
+                  </TableCell>
+                )}
                 <TableCell className="text-sm font-medium">
                   {new Intl.DateTimeFormat("pt-BR", {
                     day: "2-digit",
                     month: "short",
                   }).format(date)}
                 </TableCell>
-                <TableCell className="max-w-28 truncate font-medium sm:max-w-none">
+                <TableCell className="max-w-28 truncate font-medium sm:max-w-64 sm:whitespace-normal sm:line-clamp-2">
                   {tx.description || "—"}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
@@ -185,6 +217,7 @@ export function MonthlyView({
   sortDir,
   onSort,
   onEditTransaction,
+  onTogglePaid,
 }: {
   transactions: Transaction[];
   categories: Category[];
@@ -193,7 +226,55 @@ export function MonthlyView({
   sortDir: SortDirection;
   onSort: (key: TransactionSortKey) => void;
   onEditTransaction?: (tx: Transaction) => void;
+  onTogglePaid?: (tx: Transaction, next: boolean) => Promise<void>;
 }) {
+  const [pendingRowId, setPendingRowId] = useState<string | null>(null);
+  const [optimisticPaid, setOptimisticPaid] = useState<
+    Map<string, boolean> | null
+  >(null);
+
+  const baseTransactions = useMemo(() => {
+    if (!optimisticPaid) return transactions;
+    return transactions.map((tx) => {
+      const override = optimisticPaid.get(tx.id);
+      return override === undefined ? tx : { ...tx, paid: override };
+    });
+  }, [transactions, optimisticPaid]);
+
+  const applyOptimistic = (txId: string, next: boolean) => {
+    setOptimisticPaid((prev) => {
+      const map = new Map(prev ?? []);
+      map.set(txId, next);
+      return map;
+    });
+  };
+
+  const clearOptimistic = (txId: string) => {
+    setOptimisticPaid((prev) => {
+      if (!prev) return prev;
+      const map = new Map(prev);
+      map.delete(txId);
+      return map;
+    });
+  };
+
+  const handleTogglePaid = async (
+    tx: Transaction,
+    next: boolean,
+  ) => {
+    if (!onTogglePaid) return;
+    setPendingRowId(tx.id);
+    try {
+      await onTogglePaid(tx, next);
+    } catch {
+      // Caller surfaced the error via toast. Clear the override so the
+      // row reverts to the last server-known value.
+    } finally {
+      clearOptimistic(tx.id);
+      setPendingRowId(null);
+    }
+  };
+
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
     for (const cat of categories) {
@@ -203,13 +284,13 @@ export function MonthlyView({
   }, [categories]);
 
   const expenses = useMemo(
-    () => transactions.filter((t) => t.type === "EXPENSE"),
-    [transactions],
+    () => baseTransactions.filter((t) => t.type === "EXPENSE"),
+    [baseTransactions],
   );
 
   const incomes = useMemo(
-    () => transactions.filter((t) => t.type === "INCOME"),
-    [transactions],
+    () => baseTransactions.filter((t) => t.type === "INCOME"),
+    [baseTransactions],
   );
 
   const expenseTotal = useMemo(
@@ -236,6 +317,9 @@ export function MonthlyView({
           sortDir={sortDir}
           onSort={onSort}
           onEdit={onEditTransaction}
+          onTogglePaid={handleTogglePaid}
+          pendingRowId={pendingRowId}
+          onOptimisticPaid={applyOptimistic}
         />
       </div>
 
@@ -251,6 +335,9 @@ export function MonthlyView({
           sortDir={sortDir}
           onSort={onSort}
           onEdit={onEditTransaction}
+          onTogglePaid={handleTogglePaid}
+          pendingRowId={pendingRowId}
+          onOptimisticPaid={applyOptimistic}
         />
       </div>
     </div>

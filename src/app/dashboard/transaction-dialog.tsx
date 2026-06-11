@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { z } from "zod"
 import { createTransactionSchema } from "@/shared/schemas/transaction"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { CurrencyInput } from "@/components/ui/currency-input"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -48,6 +49,7 @@ type InitialTransaction = {
   transactionAt: Date | string
   categoryId: string | null
   accountId: string
+  paid: boolean
 }
 
 function toDateInputValue(value: Date | string): string {
@@ -98,6 +100,7 @@ export function TransactionDialog({
     description: string
     amountCents: number
     transactionAt: string
+    paid: boolean
   }) => Promise<void>
   initialTransaction?: InitialTransaction | null
   onUpdate?: (data: {
@@ -107,6 +110,7 @@ export function TransactionDialog({
     description: string
     amountCents: number
     transactionAt: string
+    paid: boolean
   }) => Promise<void>
 }) {
   const isEdit = !!initialTransaction
@@ -116,6 +120,7 @@ export function TransactionDialog({
   const [txAmountCents, setTxAmountCents] = useState(0)
   const [txDate, setTxDate] = useState(() => new Date().toISOString().split("T")[0])
   const [txDescription, setTxDescription] = useState("")
+  const [txPaid, setTxPaid] = useState(true)
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -142,12 +147,14 @@ export function TransactionDialog({
         setTxAmountCents(initialTransaction.amountCents)
         setTxDate(toDateInputValue(initialTransaction.transactionAt))
         setTxDescription(initialTransaction.description)
+        setTxPaid(initialTransaction.paid)
       } else {
         setTxAccountId(defaultAccountId)
         setTxCategoryId("")
         setTxAmountCents(0)
         setTxDate(new Date().toISOString().split("T")[0])
         setTxDescription("")
+        setTxPaid(true)
       }
       setErrors({})
       setSubmitting(false)
@@ -187,6 +194,7 @@ export function TransactionDialog({
         description: result.data.description,
         amountCents: result.data.amountCents,
         transactionAt: date.toISOString(),
+        paid: txPaid,
       }
 
       if (isEdit) {
@@ -290,6 +298,20 @@ export function TransactionDialog({
             <Label>Descrição</Label>
             <Input placeholder="Ex: Supermercado" value={txDescription} onChange={(e) => { setTxDescription(e.target.value); setErrors((e) => ({ ...e, description: undefined })) }} aria-invalid={!!errors.description} />
             {errors.description && <p className="text-xs text-destructive">{errors.description}</p>}
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
+              <Checkbox
+                checked={txPaid}
+                onCheckedChange={(value) => setTxPaid(value === true)}
+              />
+              <span className="text-sm font-medium leading-none">Pago</span>
+            </label>
+            {!txPaid && (
+              <p className="text-xs text-muted-foreground">
+                Você poderá marcar como pago depois na tabela
+              </p>
+            )}
           </div>
         </div>
         <DialogFooter>
