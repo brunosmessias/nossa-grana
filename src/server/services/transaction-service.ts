@@ -59,7 +59,10 @@ export async function listTransactions(
     conditions.push(sql`${transactions.transactionAt} >= ${input.dateFrom}`)
   }
   if (input.dateTo) {
-    conditions.push(sql`${transactions.transactionAt} <= ${input.dateTo}T23:59:59`)
+    const upperBound = input.dateTo.length <= 10
+      ? `${input.dateTo}T23:59:59.999`
+      : input.dateTo
+    conditions.push(sql`${transactions.transactionAt} <= ${upperBound}`)
   }
 
   const where = and(...conditions)
