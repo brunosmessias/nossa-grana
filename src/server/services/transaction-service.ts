@@ -110,6 +110,25 @@ export async function listAllTransactions(userId: string, familyId: string) {
     .orderBy(desc(transactions.transactionAt))
 }
 
+export async function getOldestTransactionAt(
+  userId: string,
+  familyId: string,
+): Promise<Date | null> {
+  await assertFamilyMember(familyId, userId)
+
+  const [row] = await db
+    .select({ transactionAt: transactions.transactionAt })
+    .from(transactions)
+    .where(eq(transactions.familyId, familyId))
+    .orderBy(asc(transactions.transactionAt))
+    .limit(1)
+
+  if (!row) return null
+  return row.transactionAt instanceof Date
+    ? row.transactionAt
+    : new Date(row.transactionAt)
+}
+
 export async function createTransaction(userId: string, input: CreateTransactionInput) {
   await assertFamilyMember(input.familyId, userId)
 

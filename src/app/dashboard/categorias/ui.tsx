@@ -30,7 +30,7 @@ function formatMonthLabel(monthKey: string) {
   return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1))
 }
 
-export function CategoriesPageClient({ familyId, familyCreatedMonth }: { familyId: string; familyCreatedMonth?: string | null }) {
+export function CategoriesPageClient({ familyId, familyCreatedMonth, navMinMonth }: { familyId: string; familyCreatedMonth?: string | null; navMinMonth?: string | null }) {
   const {
     selectedMonth,
     goToNext,
@@ -38,7 +38,7 @@ export function CategoriesPageClient({ familyId, familyCreatedMonth }: { familyI
     canGoNext,
     canGoPrev,
   } = useMonthSelector({
-    minMonth: familyCreatedMonth ?? null,
+    minMonth: navMinMonth ?? null,
     currentMonthKey: formatMonthKey(new Date()),
   })
   const [createOpen, setCreateOpen] = useState(false)

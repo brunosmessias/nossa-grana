@@ -3,7 +3,8 @@ import { redirect } from "next/navigation"
 
 import { auth } from "@/server/auth/auth"
 import { getFamilyCreatedAt, getUserFamilyId } from "@/server/services/family-service"
-import { formatMonthKey } from "@/lib/month-key"
+import { getOldestTransactionAt } from "@/server/services/transaction-service"
+import { earlierMonthKey, formatMonthKey } from "@/lib/month-key"
 import { CategoriesPageClient } from "./ui"
 
 export default async function CategoriasPage() {
@@ -13,5 +14,17 @@ export default async function CategoriasPage() {
   if (!familyId) redirect("/onboarding")
   const familyCreatedAt = await getFamilyCreatedAt(familyId)
   const familyCreatedMonth = familyCreatedAt ? formatMonthKey(familyCreatedAt) : null
-  return <CategoriesPageClient familyId={familyId} familyCreatedMonth={familyCreatedMonth} />
+  const oldestTxAt = await getOldestTransactionAt(session.user.id, familyId)
+  const oldestTxMonth = oldestTxAt ? formatMonthKey(oldestTxAt) : null
+  const navMinMonth =
+    familyCreatedMonth && oldestTxMonth
+      ? earlierMonthKey(familyCreatedMonth, oldestTxMonth)
+      : familyCreatedMonth ?? oldestTxMonth
+  return (
+    <CategoriesPageClient
+      familyId={familyId}
+      familyCreatedMonth={familyCreatedMonth}
+      navMinMonth={navMinMonth}
+    />
+  )
 }

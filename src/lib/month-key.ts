@@ -19,3 +19,7 @@ export function previousMonthKey(monthKey: string): string {
 export function compareMonthKeys(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
+
+export function earlierMonthKey(a: string, b: string): string {
+  return compareMonthKeys(a, b) <= 0 ? a : b;
+}

@@ -57,9 +57,11 @@ function formatMonthLabel(monthKey: string) {
 export function DashboardClient({
   defaultFamilyId,
   familyCreatedMonth,
+  navMinMonth,
 }: {
   defaultFamilyId: string | null;
   familyCreatedMonth?: string | null;
+  navMinMonth?: string | null;
 }) {
   const [familyId] = useState(defaultFamilyId ?? "");
 
@@ -70,7 +72,7 @@ export function DashboardClient({
     canGoNext,
     canGoPrev,
   } = useMonthSelector({
-    minMonth: familyCreatedMonth ?? null,
+    minMonth: navMinMonth ?? null,
     currentMonthKey: formatMonthKey(new Date()),
   });
 
