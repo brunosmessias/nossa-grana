@@ -19,6 +19,7 @@ import {
 import { api } from "@/trpc/react";
 import { Separator } from "@/components/ui/separator";
 import { useInvalidateQueries } from "@/hooks/use-invalidate-queries";
+import type { SortDirection, TransactionSortKey } from "@/shared/schemas/transaction";
 import { AccountDialog } from "./account-dialog";
 import { BatchImportDialog } from "./batch-import-dialog";
 import { CategoryDialog } from "./category-dialog";
@@ -54,18 +55,6 @@ function formatMonthLabel(monthKey: string) {
   }).format(new Date(year, month - 1, 1));
 }
 
-function getAvailableMonths(transactions: Transaction[]): string[] {
-  const months = new Set<string>();
-  const now = new Date();
-  months.add(getMonthKey(now));
-
-  for (const tx of transactions) {
-    months.add(getMonthKey(new Date(tx.transactionAt)));
-  }
-
-  return Array.from(months).sort().reverse();
-}
-
 export function DashboardClient({
   defaultFamilyId,
 }: {
@@ -83,6 +72,17 @@ export function DashboardClient({
   );
   const [savingsDialogOpen, setSavingsDialogOpen] = useState(false);
   const [batchImportOpen, setBatchImportOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<TransactionSortKey>("transactionAt");
+  const [sortDir, setSortDir] = useState<SortDirection>("desc");
+
+  const handleSort = (key: TransactionSortKey) => {
+    if (key === sortBy) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("desc");
+    }
+  };
 
   const enabled = !!familyId;
 
@@ -96,8 +96,55 @@ export function DashboardClient({
     { enabled },
   );
 
-  const { data: transactionsData } = api.transactions.listAll.useQuery(
-    { familyId },
+  const monthRange = useMemo(() => {
+    const [yearStr, monthStr] = selectedMonth.split("-").map(Number);
+    const first = new Date(Date.UTC(yearStr, monthStr - 1, 1, 0, 0, 0, 0));
+    const lastDay = new Date(Date.UTC(yearStr, monthStr, 0)).getUTCDate();
+    const last = new Date(
+      Date.UTC(yearStr, monthStr - 1, lastDay, 23, 59, 59, 999),
+    );
+    return { dateFrom: first.toISOString(), dateTo: last.toISOString() };
+  }, [selectedMonth]);
+
+  const { data: monthTransactionsData } = api.transactions.list.useQuery(
+    {
+      familyId,
+      page: 1,
+      pageSize: 100,
+      dateFrom: monthRange.dateFrom,
+      dateTo: monthRange.dateTo,
+      orderBy: sortBy,
+      orderDir: sortDir,
+    },
+    { enabled },
+  );
+
+  const previousRange = useMemo(() => {
+    const [yearStr, monthStr] = selectedMonth.split("-").map(Number);
+    const prev = new Date(Date.UTC(yearStr, monthStr - 2, 1));
+    const prevYear = prev.getUTCFullYear();
+    const prevMonth = prev.getUTCMonth() + 1;
+    const first = new Date(Date.UTC(prevYear, prevMonth - 1, 1, 0, 0, 0, 0));
+    const lastDay = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
+    const last = new Date(
+      Date.UTC(prevYear, prevMonth - 1, lastDay, 23, 59, 59, 999),
+    );
+    return { dateFrom: first.toISOString(), dateTo: last.toISOString() };
+  }, [selectedMonth]);
+
+  const { data: previousMonthTransactionsData } = api.transactions.list.useQuery(
+    {
+      familyId,
+      page: 1,
+      pageSize: 100,
+      dateFrom: previousRange.dateFrom,
+      dateTo: previousRange.dateTo,
+    },
+    { enabled },
+  );
+
+  const { data: anyTransactionData } = api.transactions.list.useQuery(
+    { familyId, page: 1, pageSize: 1 },
     { enabled },
   );
 
@@ -105,14 +152,33 @@ export function DashboardClient({
 
   const accounts = accountsData?.accounts ?? [];
   const categories = categoriesData ?? [];
-  const transactions = (transactionsData ?? []) as unknown as Transaction[];
+  const monthTransactions = (monthTransactionsData?.items ??
+    []) as unknown as Transaction[];
+  const previousMonthTransactions = (previousMonthTransactionsData?.items ??
+    []) as unknown as Transaction[];
+  const hasAnyTransaction = (anyTransactionData?.total ?? 0) > 0;
   const totalBalanceCents = accountsData?.totalBalanceCents ?? 0;
 
   useEffect(() => {
-    if (transactions.length > 0) {
-      setAvailableMonths(getAvailableMonths(transactions));
+    const months = new Set<string>();
+    const now = new Date();
+    months.add(getMonthKey(now));
+    for (const tx of monthTransactions) {
+      months.add(getMonthKey(new Date(tx.transactionAt)));
     }
-  }, [transactions]);
+    if (previousMonthTransactions.length > 0) {
+      for (const tx of previousMonthTransactions) {
+        months.add(getMonthKey(new Date(tx.transactionAt)));
+      }
+    }
+    if (months.size === 0) return;
+    const next = Array.from(months).sort().reverse();
+    setAvailableMonths((prev) =>
+      prev.length === next.length && prev.every((m, i) => m === next[i])
+        ? prev
+        : next,
+    );
+  }, [monthTransactions, previousMonthTransactions]);
 
   const defaultAccountId = useMemo(() => {
     const checking = accounts.find(
@@ -125,27 +191,7 @@ export function DashboardClient({
     );
   }, [accounts]);
 
-  const previousMonthTransactions = useMemo(() => {
-    const [yearStr, monthStr] = selectedMonth.split("-").map(Number);
-    const date = new Date(yearStr, monthStr - 1, 1);
-    date.setMonth(date.getMonth() - 1);
-    const prevKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-    return (
-      transactions.filter(
-        (tx) => getMonthKey(new Date(tx.transactionAt)) === prevKey,
-      ) ?? []
-    );
-  }, [transactions, selectedMonth]);
-
   const currentIdx = availableMonths.indexOf(selectedMonth);
-
-  const monthTransactions = useMemo(
-    () =>
-      transactions.filter(
-        (tx) => getMonthKey(new Date(tx.transactionAt)) === selectedMonth,
-      ) ?? [],
-    [transactions, selectedMonth],
-  );
 
   const monthIncome = useMemo(
     () =>
@@ -414,7 +460,7 @@ export function DashboardClient({
         }}
       />
 
-      {transactions.length > 0 && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && (
+      {hasAnyTransaction && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && (
         <BatchImportDialog
           open={batchImportOpen}
           onOpenChange={setBatchImportOpen}
@@ -427,7 +473,7 @@ export function DashboardClient({
         />
       )}
 
-      {transactions.length > 0 && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && !batchImportOpen && (
+      {hasAnyTransaction && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && !batchImportOpen && (
         <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border/60 bg-muted/30 p-8 text-center">
           <p className="text-sm text-muted-foreground">
             Nenhuma transação neste mês
@@ -439,11 +485,14 @@ export function DashboardClient({
         </div>
       )}
 
-      {transactions.length > 0 && (
+      {hasAnyTransaction && (
         <MonthlyView
           transactions={monthTransactions}
           categories={categories}
           onAddTransaction={openTxDialog}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSort={handleSort}
         />
       )}
     </>

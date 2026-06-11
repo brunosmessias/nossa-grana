@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SortableHeader } from "@/components/ui/sortable-header";
+import type { SortDirection, TransactionSortKey } from "@/shared/schemas/transaction";
 import { Plus } from "lucide-react";
 
 type Category = {
@@ -46,6 +48,9 @@ function TransactionSection({
   valueColor,
   categoryMap,
   onAdd,
+  sortBy,
+  sortDir,
+  onSort,
 }: {
   title: string;
   transactions: Transaction[];
@@ -53,6 +58,9 @@ function TransactionSection({
   valueColor: string;
   categoryMap: Map<string, Category>;
   onAdd: () => void;
+  sortBy: TransactionSortKey;
+  sortDir: SortDirection;
+  onSort: (key: TransactionSortKey) => void;
 }) {
   return (
     <section className="w-full rounded-md border-2 border-border/60 p-4 bg-white dark:bg-muted/10">
@@ -73,18 +81,31 @@ function TransactionSection({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-xs font-bold uppercase text-muted-foreground">
-              Data
-            </TableHead>
-            <TableHead className="text-xs font-bold uppercase text-muted-foreground">
-              Descrição
-            </TableHead>
+            <SortableHeader
+              label="Data"
+              columnKey="transactionAt"
+              activeSortBy={sortBy}
+              activeSortDir={sortDir}
+              onSort={onSort}
+            />
+            <SortableHeader
+              label="Descrição"
+              columnKey="description"
+              activeSortBy={sortBy}
+              activeSortDir={sortDir}
+              onSort={onSort}
+            />
             <TableHead className="hidden text-xs font-bold uppercase text-muted-foreground sm:table-cell">
               Categoria
             </TableHead>
-            <TableHead className="text-right text-xs font-bold uppercase text-muted-foreground">
-              Valor
-            </TableHead>
+            <SortableHeader
+              label="Valor"
+              columnKey="amountCents"
+              activeSortBy={sortBy}
+              activeSortDir={sortDir}
+              onSort={onSort}
+              align="right"
+            />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -140,10 +161,16 @@ export function MonthlyView({
   transactions,
   categories,
   onAddTransaction,
+  sortBy,
+  sortDir,
+  onSort,
 }: {
   transactions: Transaction[];
   categories: Category[];
   onAddTransaction: (type: "INCOME" | "EXPENSE") => void;
+  sortBy: TransactionSortKey;
+  sortDir: SortDirection;
+  onSort: (key: TransactionSortKey) => void;
 }) {
   const categoryMap = useMemo(() => {
     const map = new Map<string, Category>();
@@ -183,6 +210,9 @@ export function MonthlyView({
           valueColor="text-foreground"
           categoryMap={categoryMap}
           onAdd={() => onAddTransaction("EXPENSE")}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSort={onSort}
         />
       </div>
 
@@ -194,6 +224,9 @@ export function MonthlyView({
           valueColor="text-foreground"
           categoryMap={categoryMap}
           onAdd={() => onAddTransaction("INCOME")}
+          sortBy={sortBy}
+          sortDir={sortDir}
+          onSort={onSort}
         />
       </div>
     </div>

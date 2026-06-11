@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { z } from "zod"
-import { createTransactionSchema } from "@/shared/schemas/transaction"
+import { createTransactionSchema, type SortDirection, type TransactionSortKey } from "@/shared/schemas/transaction"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import { Plus, Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { api } from "@/trpc/react"
 import { useInvalidateQueries } from "@/hooks/use-invalidate-queries"
@@ -175,6 +176,8 @@ function TxRow({ tx, cat, acc, showGroup, gLabel: gLbl, gTotal, onEdit, onDel }:
 export function TransactionsPageClient({ familyId }: { familyId: string }) {
   const [search, setSearch] = useState(""); const [debounced, setDebounced] = useState("")
   const [page, setPage] = useState(1)
+  const [sortBy, setSortBy] = useState<TransactionSortKey>("transactionAt")
+  const [sortDir, setSortDir] = useState<SortDirection>("desc")
   const [gm, setGm] = useState<GroupMode>("list")
   const [fType, setFType] = useState<"ALL" | "INCOME" | "EXPENSE">("ALL")
   const [fAcc, setFAcc] = useState("ALL"); const [fCat, setFCat] = useState("ALL")
@@ -183,6 +186,16 @@ export function TransactionsPageClient({ familyId }: { familyId: string }) {
   const [editTx, setEditTx] = useState<Transaction | null>(null)
   const [delOpen, setDelOpen] = useState(false); const [delTx, setDelTx] = useState<Transaction | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  const handleSort = (key: TransactionSortKey) => {
+    if (key === sortBy) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+    } else {
+      setSortBy(key)
+      setSortDir("desc")
+    }
+    setPage(1)
+  }
 
   const { data: categoriesData } = api.categories.list.useQuery(
     { familyId },
@@ -205,6 +218,8 @@ export function TransactionsPageClient({ familyId }: { familyId: string }) {
       categoryId: fCat !== "ALL" ? fCat : undefined,
       dateFrom: fDateFrom || undefined,
       dateTo: fDateTo || undefined,
+      orderBy: sortBy,
+      orderDir: sortDir,
     },
     { enabled: !!familyId },
   )
@@ -266,12 +281,12 @@ export function TransactionsPageClient({ familyId }: { familyId: string }) {
         <div className="min-w-0 flex-1">
           <Card><CardContent className="p-0"><Table>
             <TableHeader><TableRow className="hover:bg-transparent">
-              <TableHead className="text-xs font-bold uppercase text-muted-foreground">Data</TableHead>
-              <TableHead className="text-xs font-bold uppercase text-muted-foreground">Descrição</TableHead>
+              <SortableHeader label="Data" columnKey="transactionAt" activeSortBy={sortBy} activeSortDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Descrição" columnKey="description" activeSortBy={sortBy} activeSortDir={sortDir} onSort={handleSort} />
               <TableHead className="hidden text-xs font-bold uppercase text-muted-foreground md:table-cell">Categoria</TableHead>
               <TableHead className="hidden text-xs font-bold uppercase text-muted-foreground lg:table-cell">Conta</TableHead>
               <TableHead className="hidden text-xs font-bold uppercase text-muted-foreground sm:table-cell">Tipo</TableHead>
-              <TableHead className="text-right text-xs font-bold uppercase text-muted-foreground">Valor</TableHead>
+              <SortableHeader label="Valor" columnKey="amountCents" activeSortBy={sortBy} activeSortDir={sortDir} onSort={handleSort} align="right" />
               <TableHead className="w-10 sm:w-16" />
             </TableRow></TableHeader>
             <TableBody>
