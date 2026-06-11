@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ADD COLUMN "paid" boolean DEFAULT true NOT NULL;

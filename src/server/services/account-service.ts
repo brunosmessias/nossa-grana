@@ -29,7 +29,12 @@ export async function listAccounts(
         expense: sql<number>`coalesce(sum(case when ${transactions.type} = 'EXPENSE' then ${transactions.amountCents} else 0 end), 0)`,
       })
       .from(transactions)
-      .where(inArray(transactions.accountId, accountIds))
+      .where(
+        and(
+          inArray(transactions.accountId, accountIds),
+          eq(transactions.paid, true),
+        ),
+      )
       .groupBy(transactions.accountId)
 
     balancesByAccountId = new Map(

@@ -152,6 +152,7 @@ export async function createTransaction(
       description: input.description,
       amountCents: input.amountCents,
       transactionAt: input.transactionAt ? new Date(input.transactionAt) : new Date(),
+      paid: input.paid ?? true,
     })
     .returning({ id: transactions.id })
 
@@ -181,6 +182,7 @@ export async function updateTransaction(
     description?: string
     amountCents?: number
     transactionAt?: string
+    paid?: boolean
   },
   membership?: FamilyMembership,
 ) {
@@ -200,6 +202,7 @@ export async function updateTransaction(
   if (input.description !== undefined) updates.description = input.description
   if (input.amountCents !== undefined) updates.amountCents = input.amountCents
   if (input.transactionAt !== undefined) updates.transactionAt = new Date(input.transactionAt)
+  if (input.paid !== undefined) updates.paid = input.paid
 
   await db
     .update(transactions)

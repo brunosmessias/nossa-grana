@@ -126,6 +126,7 @@ export const transactions = pgTable(
     description: text("description").notNull(),
     amountCents: integer("amount_cents").notNull(),
     transactionAt: timestamp("transaction_at", { withTimezone: true }).notNull().defaultNow(),
+    paid: boolean("paid").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({

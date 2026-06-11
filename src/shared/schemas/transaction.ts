@@ -8,6 +8,7 @@ export const createTransactionSchema = z.object({
   description: z.string().min(2).max(120),
   amountCents: z.number().int().positive(),
   transactionAt: z.string().datetime().optional(),
+  paid: z.boolean().default(true),
 })
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>
@@ -42,6 +43,7 @@ export const updateTransactionSchema = z.object({
   description: z.string().min(2).max(120).optional(),
   amountCents: z.number().int().positive().optional(),
   transactionAt: z.string().datetime().optional(),
+  paid: z.boolean().optional(),
 })
 
 export const deleteTransactionSchema = z.object({
