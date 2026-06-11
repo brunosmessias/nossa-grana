@@ -172,7 +172,7 @@ function TxRow({ tx, cat, acc, showGroup, gLabel: gLbl, gTotal, onEdit, onDel }:
       {showGroup && (<TableRow className="bg-muted/50 hover:bg-muted/50"><TableCell colSpan={7} className="py-2 text-sm font-semibold text-muted-foreground">{gLbl} <span className="ml-2 font-mono text-xs">({brl(gTotal)})</span></TableCell></TableRow>)}
       <TableRow className="cursor-pointer" onClick={() => onEdit(tx)}>
         <TableCell className="text-sm">{fmtShort(tx.transactionAt)}</TableCell>
-        <TableCell className="max-w-28 truncate font-medium sm:max-w-40">{tx.description || "—"}</TableCell>
+        <TableCell className="max-w-28 truncate font-medium sm:max-w-64 sm:whitespace-normal sm:line-clamp-2">{tx.description || "—"}</TableCell>
         <TableCell className="hidden md:table-cell">{cat ? <div className="flex items-center gap-2"><IconBadge icon={cat.icon} color={cat.color} size="sm" /><span className="text-sm">{cat.name}</span></div> : <span className="text-muted-foreground">—</span>}</TableCell>
         <TableCell className="hidden lg:table-cell text-sm">{acc?.name ?? "—"}</TableCell>
         <TableCell className="hidden sm:table-cell"><Badge variant={tx.type === "INCOME" ? "default" : "destructive"} className="text-xs">{tx.type === "INCOME" ? "Receita" : "Despesa"}</Badge></TableCell>
