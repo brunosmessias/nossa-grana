@@ -332,6 +332,19 @@ export function DashboardClient({
     );
   }
 
+  const showImportCard =
+    monthTransactions.length === 0 &&
+    previousMonthTransactions.length > 0 &&
+    selectedMonth !== (familyCreatedMonth ?? "");
+
+  const openBatchImport = () => {
+    if (previousMonthTransactions.length === 0) {
+      toast.error("Sem transações no mês anterior para importar");
+      return;
+    }
+    setBatchImportOpen(true);
+  };
+
   return (
     <>
       <section className="flex w-full flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -477,7 +490,7 @@ export function DashboardClient({
         }}
       />
 
-      {hasAnyTransaction && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && (
+      {showImportCard && (
         <BatchImportDialog
           open={batchImportOpen}
           onOpenChange={setBatchImportOpen}
@@ -490,12 +503,12 @@ export function DashboardClient({
         />
       )}
 
-      {hasAnyTransaction && monthTransactions.length === 0 && previousMonthTransactions.length > 0 && !batchImportOpen && (
+      {showImportCard && !batchImportOpen && (
         <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border/60 bg-muted/30 p-8 text-center">
           <p className="text-sm text-muted-foreground">
             Nenhuma transação neste mês
           </p>
-          <Button variant="default" onClick={() => setBatchImportOpen(true)}>
+          <Button variant="default" onClick={openBatchImport}>
             <Copy className="size-3.5" />
             Importar do mês anterior
           </Button>
